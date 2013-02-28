@@ -38,139 +38,164 @@ The target device where to send the firmware to. This can be either a serial por
 =cut
 
 sub new {
-    my ($pkg, %p) = @_;
+	my ( $pkg, %p ) = @_;
 
-    my $self = bless {
-	_program => {}, # Internal hash to store the contents of the program memory
-	%p
-    }, $pkg;
+	my $self = bless {
+		_program => {}
+		,    # Internal hash to store the contents of the program memory
+		%p
+	}, $pkg;
 
-    if (!defined $self->{firmware}) {
-	croak("Please pass a firmware HEX file for reading");
-    }
+	if ( !defined $self->{firmware} ) {
+		croak("Please pass a firmware HEX file for reading");
+	}
 
-    if (!defined $self->{device}) {
-	croak("Please pass a target device to send the firmware to");
-    }
+	if ( !defined $self->{device} ) {
+		croak("Please pass a target device to send the firmware to");
+	}
 
-    $self->_read_hexfile();
+	$self->_read_hexfile();
 
-    return $self;
+	return $self;
 }
 
 # Read the hexfile containing the program memory data
 sub _read_hexfile {
 
-    my ($self) = @_;
+	my ($self) = @_;
 
-    open my $fh, '<', $self->{firmware} or croak "Could not open firmware hex file for reading: $!";
+	open my $fh, '<', $self->{firmware}
+	  or croak "Could not open firmware hex file for reading: $!";
 
-    my $counter = 0;
-    my $offset  = 0;
+	my $counter = 0;
+	my $offset  = 0;
 
-    while ($fh){
-	chomp;
-	$counter ++;
+	while (my $line = <$fh>) {
+		chomp($line);
 
-	# Check for end of file marker
-	if (/^:[0-9A-F]{6}01/){
-	    #print "End of file marker found.\n";
-	    last;
+		$counter++;
+
+		# Check for end of file marker
+		if ($line =~ /^:[0-9A-F]{6}01/) {
+
+			#print "End of file marker found.\n";
+			last;
+		}
+
+		# Translate extended Linear Address Records
+		if ($line =~ /^:(02000004([0-9A-F]{4}))([0-9A-F]{2})/) {
+			$offset = hex($2);
+			$self->_check_crc( $1, $3, $counter );
+
+			say(
+"Detected HEX386 Extended Linear Address Record in hex file, using offset: $offset\n"
+			);
+			next;
+		}
+
+		# Translate data records
+		if ($line =~ /^:(([0-9A-F]{2})([0-9A-F]{4})00([0-9A-F]+))([0-9A-F]{2})/) {
+
+			# $1 = everything but the CRC
+			# $2 = nr of words
+			# $3 = address
+			# $4 = data
+			# $5 = crc
+			my $address = hex($3);
+
+			# Check if we have valid CRC
+			$self->_check_crc( $1, $5, $counter );
+
+			# If CRC was valid, add it to the memory datastructure
+			# Be sure to add the $offset from the Linear Address Record!
+			$self->_add_to_memory( $address + $offset, $4 );
+
+			next;
+		}
+
+		# Catch invalid records
+		croak( $self->{firmware} . " contains invalid info on line $counter." );
+
 	}
-	
-	# Translate extended Linear Address Records
-	if (/^:(02000004([0-9A-F]{4}))([0-9A-F]{2})/){
-	    $offset = hex($2);
-	    $self->_check_crc($1, $3, $counter);
-	        
-	    say("Detected HEX386 Extended Linear Address Record in hex file, using $offset\n");
-	    next;
-	}
 
-	# Translate data records
-	if (/^:(([0-9A-F]{2})([0-9A-F]{4})00([0-9A-F]+))([0-9A-F]{2})/){
-	    # $1 = everything but the CRC
-	    # $2 = nr of words
-	    # $3 = address
-	    # $4 = data
-	    # $5 = crc
-	    my $address = hex($3);
-
-	    # Check if we have valid CRC
-	    $self->_check_crc($1, $5, $counter);
-
-	    # If CRC was valid, add it to the memory datastructure
-	    # Be sure to add the $offset from the Linear Address Record!
-	    $self->_add_to_memory($address + $offset, $4);
-
-	    next;
-	}
-
-	# Catch invalid records
-	croak($self->{firmware} . " contains invalid info on line $counter.");
-
-    } 
-
-    close($fh);
+	close($fh);
 }
-
 
 # Verify the CRC of a line read from the HEX file
 #   If CRC is invalid, then suggest the correct one (so you
-#   don't have to calculate it yourself when doing instruction 
+#   don't have to calculate it yourself when doing instruction
 #   level hacking :-) )
 sub _check_crc {
-    my ($self, $data, $crc_in, $line_num) = @_;
+	my ( $self, $data, $crc_in, $line_num ) = @_;
 
-    $crc_in = hex($crc_in);
+	$crc_in = hex($crc_in);
 
-    my $string = pack("H*", $data);
-    my $crc_calc = (256 - unpack("%a*", $string) % 256) % 256 ;
+	my $string = pack( "H*", $data );
+	my $crc_calc = ( 256 - unpack( "%a*", $string ) % 256 ) % 256;
 
-    if ($crc_calc != $crc_in) {
-	my $nice_crc = $self->_dec2hex($crc_calc);
-	carp("Invalid CRC in '$self->{firmware}' on line $line_num, should be 0x$nice_crc");
-    }        
+	if ( $crc_calc != $crc_in ) {
+		my $nice_crc = $self->_dec2hex($crc_calc);
+		carp(
+"Invalid CRC in '$self->{firmware}' on line $line_num, should be 0x$nice_crc"
+		);
+	}
 
 }
 
 sub _dec2hex {
 
-    my ($self, $dec, $fill) = @_;
+	my ( $self, $dec, $fill ) = @_;
 
-    my $fmt_string;
+	my $fmt_string;
 
-    if (defined($fill)){
-	$fmt_string = "%0" . $fill . "X";
-    } else {
-	$fmt_string = "%02X";
-    }
-    return sprintf($fmt_string, $dec );
+	if ( defined($fill) ) {
+		$fmt_string = "%0" . $fill . "X";
+	} else {
+		$fmt_string = "%02X";
+	}
+	return sprintf( $fmt_string, $dec );
 }
 
 sub _add_to_memory {
 
-    my ($self, $address, $data_in) = @_;
+	my ( $self, $address, $data_in ) = @_;
 
-    my $index;
-    my $mem_addr;
+	my $index;
+	my $mem_addr;
 
-    my @data = unpack("a4" x (length($data_in)/4), $data_in);
+	my @data = unpack( "a4" x ( length($data_in) / 4 ), $data_in );
 
-    # Scan the line
-    for ($index = 0; $index < scalar(@data); $index++){
-	# Calculate the actual address ($index * 2) because we read bytes and write shorts
-	$mem_addr = ($index*2) + $address;
+	# Scan the line
+	for ( $index = 0 ; $index < scalar(@data) ; $index++ ) {
 
-	# And add the info if the location is not defined yet
-	if (!defined ($self->{_program}->{$mem_addr})){
-	    $self->{_program}->{$mem_addr}->{data} = $data[$index];
-	} else {
-	    my $error = sprintf "Memory location 0x%X defined twice in hex file.\n", $mem_addr;
-	    croak $error;
+		# Calculate the actual address ($index * 2) because we read bytes and write shorts
+		$mem_addr = ( $index * 2 ) + $address;
+
+		# And add the info if the location is not defined yet
+		if ( !defined( $self->{_program}->{$mem_addr} ) ) {
+			$self->{_program}->{$mem_addr}->{data} = $data[$index];
+		} else {
+			my $error =
+			  sprintf "Memory location 0x%X defined twice in hex file.\n",
+			  $mem_addr;
+			croak $error;
+		}
 	}
-    }
-    
+
 }
 
+# Displays the program memory contents in hex format on the screen
+sub _print_program_memory {
+	my ($self) = @_;
+	
+	my $counter = 0;
+	
+	foreach my $entry (sort {$a<=>$b} keys $self->{_program}) {
+		if (($counter % 8) == 0) {
+			print "\n $counter\t: ";
+		}
+		print $self->{_program}->{$entry}->{data};
+		$counter++;
+	}
+}
 1;
