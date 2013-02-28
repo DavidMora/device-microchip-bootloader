@@ -6,14 +6,16 @@
 
 use strict;
 use Test::More;
-use Test::Output;
-use Test::Exception;
 
-use_ok 'Device::Microchip::Bootloader';
+BEGIN { use_ok 'Device::Microchip::Bootloader'; }
+BEGIN { use_ok 'Test::Exception'; }
 
 # Check we get an error message on missing input parameters
 my $loader;
-stderr_like { $loader =  = Device::Microchip::Bootloader->new(); }  qr/Please pass a firmware HEX file for reading/, 'Input parameter check 1';
+
+throws_ok { $loader = Device::Microchip::Bootloader->new() } qr/Please pass a firmware HEX file for reading/, "Checking missing HEX file input";
+throws_ok { $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/test.hex') } qr/Please pass a target device/, "Checking missing target device";
+throws_ok { $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/missing_file.hex', device => 'flubber') } qr/Could not open/, "Checking missing hex file";
 
 $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/test.hex', device => '/dev/ttyUSB0');
 ok $loader, 'object created';
