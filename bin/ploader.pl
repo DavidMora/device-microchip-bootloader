@@ -16,7 +16,7 @@ use Device::Microchip::Bootloader;
     my $loader = Device::Microchip::Bootloader->new( firmware => '../t/stim/test.hex', device => '/dev/ttyUSB0');
 #    my $loader = Device::Microchip::Bootloader->new( firmware => '../t/stim/test.hex');
     $loader->_print_program_memory();
-    
+
 
 #} else {
 #    die
