@@ -13,6 +13,8 @@ BEGIN { use_ok 'Test::Exception'; }
 # Check we get an error message on missing input parameters
 my $loader;
 
+can_ok ('Device::Microchip::Bootloader', qw(firmware device));
+
 throws_ok { $loader = Device::Microchip::Bootloader->new() } qr/Attribute .+ is required at constructor/, "Checking missing parameters";
 throws_ok { $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/test.hex') } qr/Attribute \(device\) is required at constructor/, "Checking missing target device";
 throws_ok { $loader = Device::Microchip::Bootloader->new(device => 'flubber') } qr/Attribute \(firmware\) is required at constructor/, "Checking missing HEX file input";
@@ -20,5 +22,6 @@ throws_ok { $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/mis
 
 $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/test.hex', device => '/dev/ttyUSB0');
 ok $loader, 'object created';
+ok $loader->isa('Device::Microchip::Bootloader'), 'and it is the right class';
 
 done_testing();

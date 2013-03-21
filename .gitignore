@@ -1,0 +1,8 @@
+/Device-Microchip-Bootloader*
+/.build
+/cover_db
+*~
+/.tdldb.bak
+/temp
+/.settings
+#*#
