@@ -1,4 +1,4 @@
-use strict; # To keep Test::Perl::Critic happy, Moose does enable this too...
+use strict;    # To keep Test::Perl::Critic happy, Moose does enable this too...
 
 package Device::Microchip::Bootloader;
 
@@ -13,319 +13,343 @@ use Digest::CRC qw(crc16);
 use Data::Dumper;
 
 has firmware => (
-    is       => 'ro',
-    isa      => 'Str',
-    required => 1,
+	is       => 'ro',
+	isa      => 'Str',
+	required => 1,
 );
 
 has device => (
-    is       => 'ro',
-    isa      => 'Str',
-    required => 1,
+	is       => 'ro',
+	isa      => 'Str',
+	required => 1,
 );
 
 has verbose => (
-    is => 'ro',
-    isa => 'Int',
-    default => '0',
+	is      => 'ro',
+	isa     => 'Int',
+	default => '0',
 );
 
 use Carp qw/croak carp/;
 
 # Ensure we read the hexfile after constructing the Bootloader object
 sub BUILD {
-    my $self = shift;
-    $self->_read_hexfile;
+	my $self = shift;
+	$self->{_connected} = 0;
+	$self->_read_hexfile;
 }
 
 # Program the target device
 sub program {
-    my $self = shift;
-    
-    my $connected;
+	my $self = shift;
 
-    # Connect to the target device
-    $connected = $self->_connect();
+	# Connect to the target device if this is not the case yet
+	if (! $self->{_connected}) {
+		$self->connect_target();
+	}
 
-    return 0 if !$connected;
+	return 0 if !$self->{_connected};
 
-    # Request the info on the connected device
-    $self->_write_packet("0102");
-   
-    # Display the target device type
-    my $response = $self->_read_packet(2);
-
-    print Dumper($response);
-
-    return 1;
+	# TODO complete this function to do the actual programming
+	
+	return 1;
 }
 
 # Open the connection to the target device (serial port or TCP)
 # depending on the target parameters that were passed
-sub _connect {
-    my $self = shift;
+sub connect_target {
+	my $self = shift;
 
-    # Open the port
-    $self->_device_open();
+	# Open the port
+	$self->_device_open();
 
-    # Wait for the pic to respond to the magic characters
-    $self->_debug(1, "Sending hello...");
-    my $start = "\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F\x0F";
-    syswrite($self->{_fh}, $start, length($start));
-    
-    my $bytes = $self->_read_packet(10, 1);
+	# Request bootloader operation
+	$self->_debug( 1, "Anybody home?" );
+	$self->_write_packet("00");
 
-    return $bytes;
+	my $bytes = $self->_read_packet(20);
 
+	# Process the info that was returned
+	#$self->_debug( 4, "Got response: " . Dumper($bytes));
+	$self->{'bootloader_version_minor'} = hex(${$bytes}[2]);
+	$self->{'bootloader_version_major'} = hex(${$bytes}[3]);
+	
+	
+	return $bytes;
+
+}
+
+sub bootloader_version {
+ 	my $self = shift;
+ 	my $version->{'major'} = $self->{'bootloader_version_major'};
+ 	$version->{'minor'} = $self->{'bootloader_version_minor'};
+ 	
+ 	return $version;
+}
+
+sub read_eeprom {
+	my ($self, $start_addr, $numbytes) = @_;
+	
+	my $command = "05" . $self->_int2str($start_addr) . "0000" . $self->_int2str($numbytes);
+	
+	$self->_write_packet($command);
+	my $response = $self->_read_packet(10);
+	
+	return $response;
 }
 
 # open the port to a device, be it a serial port or a socket
 sub _device_open {
-    my $self = shift;
+	my $self = shift;
 
-    my $dev = $self->device();
-    my $fh;
-    my $baud = 115200;
+	my $dev = $self->device();
+	my $fh;
+	my $baud = 115200;
 
-    if ($dev =~ /\//) {
-	if (-S $dev) {
-	    $fh = IO::Socket::UNIX->new($dev)
-		or croak("Unix domain socket connect to '$dev' failed: $!\n");
+	if ( $dev =~ /\// ) {
+		if ( -S $dev ) {
+			$fh = IO::Socket::UNIX->new($dev)
+			  or croak("Unix domain socket connect to '$dev' failed: $!\n");
+		} else {
+			require Symbol;
+			require Device::SerialPort;
+			import Device::SerialPort qw( :PARAM :STAT 0.07 );
+			$fh = Symbol::gensym();
+			my $sport = tie( *$fh, 'Device::SerialPort', $dev )
+			  or $self->argh("Could not tie serial port to file handle: $!\n");
+			$sport->baudrate($baud);
+			$sport->databits(8);
+			$sport->parity("none");
+			$sport->stopbits(1);
+			$sport->datatype("raw");
+			$sport->write_settings();
+			sysopen( $fh, $dev, O_RDWR | O_NOCTTY | O_NDELAY )
+			  or croak("open of '$dev' failed: $!\n");
+			$fh->autoflush(1);
+		}
 	} else {
-	    require Symbol;
-	    require Device::SerialPort;
-	    import Device::SerialPort qw( :PARAM :STAT 0.07 );
-	    $fh = Symbol::gensym();
-	    my $sport = tie (*$fh, 'Device::SerialPort', $dev) or
-		$self->argh("Could not tie serial port to file handle: $!\n");
-	    $sport->baudrate($baud);
-	    $sport->databits(8);
-	    $sport->parity("none");
-	    $sport->stopbits(1);
-	    $sport->datatype("raw");
-	    $sport->write_settings();
-	    sysopen($fh, $dev, O_RDWR|O_NOCTTY|O_NDELAY)
-		or croak("open of '$dev' failed: $!\n");
-	    $fh->autoflush(1);
+		$dev .= ':' . ('10001') unless ( $dev =~ /:/ );
+		$fh = IO::Socket::INET->new($dev)
+		  or croak("TCP connect to '$dev' failed: $!\n");
 	}
-    } else {
-	$dev .= ':'.('10001') unless ($dev =~ /:/);
-	$fh = IO::Socket::INET->new($dev)
-	    or croak("TCP connect to '$dev' failed: $!\n");
-    }
 
-    $self->_debug(1, "Port opened");
+	$self->_debug( 1, "Port opened" );
 
-    $self->{_fh} = $fh;
-    return;
+	$self->{_fh} = $fh;
+	return;
 
 }
 
 ## write_serial
 #   Prints data to the serial port.
 #   the controller
-#   Takes a string of hex characters as input (e.g. "DEADBEEF")
+#   Takes a string of hex characters as input (e.g. "DEADBEEF").
+#   Tho characters get converted to a single byte that will be sent
 sub _write_packet {
 
-    my ($self, $data) = @_;
+	my ( $self, $data ) = @_;
 
-    # Create packet for transmission
-    my $string = pack("H*", $data);
+	# Create packet for transmission
+	my $string = pack( "H*", $data );
 
-    my $crc    = crc16($string);
-    my $packet = $string . pack("C", $crc % 256) . pack ("C", $crc / 256);
-    # byte stuffing for the control characters in the data stream
-    $packet =~ s/\x05/\x05\x05/g;
-    $packet =~ s/\x04/\x05\x04/g;
-    $packet =~ s/\x0F/\x05\x0F/g;
-    
-    $packet = pack("C", 15) . $packet . pack("C", 4);
+	my $crc = crc16($string);
+	my $packet = $string . pack( "C", $crc % 256 ) . pack( "C", $crc / 256 );
 
-    $self->_debug(3, "Writing: " . $self->_hexdump($packet));
+	$packet = $self->_escape($packet);
+	
+	$packet = pack( "C", 15 ) . $packet . pack( "C", 4 );
 
+	$self->_debug( 3, "Writing: " . $self->_hexdump($packet) );
 
-    # Write
-    syswrite($self->{_fh}, $packet, length($packet));  
+	# Write
+	syswrite( $self->{_fh}, $packet, length($packet) );
 
 }
-
 
 ## read_serial(timeout)
 #   Reads data from the serial port. Times out if nothing is
 #   received after <timeout> seconds.
 sub _read_packet {
 
-    my ($self, $timeout, $sync) = @_;
+	my ( $self, $timeout) = @_;
 
-    my @numresult;
-    my $result;
+	my @numresult;
+	my $result;
 
-    eval {
-	# Set alarm
-	alarm($timeout);
+	eval {
 
-	# Execute receive code
-	my $waiting = 1;
-	$result = "";
-	my $bytes;
-	while ($waiting){
+		# Set alarm
+		alarm($timeout);
 
-	    # Read reply
-	    $bytes = $self->{_fh}->sysread($result, 2048, length($result));
-	    # Verify we have the entire string (should end with 0x04 and no preceding 0x05)
-	    $self->_debug(4, "Result is $result");
-	    if ($sync && $result =~ /\x0F/) {
-		$waiting = 0;
-	    }
-	    if (!($result =~ /\x05\x04$/) && ($result =~ /\x04$/)) {
-		$waiting = 0;
-	    }
+		# Execute receive code
+		my $waiting = 1;
+		$result = "";
+		my $bytes;
+		while ($waiting) {
+
+			# Read reply, could be in multiple passes, so we need to add as offset the current length of the receiving variable
+			$bytes = $self->{_fh}->sysread( $result, 2048, length($result) );
+
+ # Verify we have the entire string (should end with 0x04 and no preceding 0x05)
+			$self->_debug( 4, "RX # " . $self->_hexdump($result) );
+			#if ( $sync && $result =~ /\x0F/ ) {
+			#	$waiting = 0;
+			#}
+			
+			# Stop reading when we receive an end of line marker
+			if ( $result =~ /\x04$/) {
+				$waiting = 0;
+				# unless we received and 0x04 that was escaped because then we were not at the end of the packet
+				$waiting = 1 if ($result =~ /\x05\x04$/);
+				# Unless it was an escaped \x05
+				$waiting = 0 if ($result =~ /\x05\x05\x04$/);	
+			}
+			
+		}
+
+		# Clear alarm
+		alarm(0);
+	};
+
+	# Check what happened in the eval loop
+	if ($@) {
+		if ( $@ =~ /timeout/ ) {
+
+			# Oops, we had a timeout
+			croak("Timeout waiting for data from device");
+		} else {
+
+			# Oops, we died
+			alarm(0);    # clear the still-pending alarm
+			die;         # propagate unexpected exception
+		}
+
 	}
-	
-	# Clear alarm
-	alarm(0);
-    };
 
-    # Check what happened in the eval loop
-    if ($@) {
-	if ($@ =~ /timeout/) {
-	    # Oops, we had a timeout
-	    croak("Timeout waiting for data from device");
-	} else {
-	        # Oops, we died
-	    alarm(0);           # clear the still-pending alarm
-	    die;                # propagate unexpected exception
-	} 
-	
-    } 
+	#return 1 if ($sync);
 
-    return 1 if ($sync);
+	# We get here if the eval exited normally
+	$result = $self->_parse_response($result);
 
-    # We get here if the eval exited normally
-    @numresult = $self->_parse_response($result);
-
-    return @numresult;
+	return $result;
 }
 
 ## parse_response
-# Decode the response from the embedded device, i.e. remove 
+# Decode the response from the embedded device, i.e. remove
 # protocol overhead, and return the remaining result.
 sub _parse_response {
-    my ($self, $input) = @_;
-    
-    # Verify packet structure <STX><STX><...><ETX>
-    if (!(($input =~ /^\x0F/) && ($input =~ /\x04$/) && !($input =~ /\x05\x04$/))) {
-	croak("Received invalid packet structure from PIC\n");
-    }
+	my ( $self, $input ) = @_;
 
-    # Remove the byte stuffing
-    # <DLE>
-    $input =~ s/\x05\x05/\x05/g;
-    # <ETX>
-    $input =~ s/\x05\x04/\x04/g;
-    # <STX>
-    $input =~ s/\x05\x0F/\x0F/g;    
-    
+	# Verify packet structure <STX><STX><...><ETX>
+	if (
+		!(
+			   ( $input =~ /^\x0F/ )
+			&& ( $input =~ /\x04$/ )
+			&& (!( $input =~ /\x05\x04$/ ) || ($input =~ /\x05\x05\x04$/))
+		)
+	  )
+	{
+		croak("Received invalid packet structure from PIC\n");
+	}
 
-    # Process the received data
-    my @numresult = unpack("C*", $input);
-    
 
-    # Verify the CRC
-    my $crc_check = 0;
+	# Skip the header byte, no need to verify again the value, was verified with regexp already
+	$_ = $input;
+	s/^.//s;
+	# pop the trailing end of transmission marker
+	s/.$//s;
+	
+	$input = $self->_unescape($_);
 
-    # Skip the 2 header bytes
-    if (shift(@numresult) != 15){
-	croak("Header byte 1 in response from PIC != 15!");
-    }
+	#say "Received after processing: " . $self->_hexdump($input);
+	
+	# Process the received data
+	my @numresult = unpack( "C*", $input );
 
-    foreach (@numresult){
-	$crc_check += $_; 
-#print $_ . " ";
-    } 
+	# Verify the CRC
+	my $crc_check = 0;
 
-    # TODO: check CRC
-    return @numresult;
 
-    $crc_check = $crc_check % 256;
+	# Received CRC
+	my $rx_crc = pop(@numresult);
+	$rx_crc = $rx_crc * 256 + pop(@numresult);
+	
+	# Calculate the CRC on the received string minus the CRC and trailing 0x04
+	$crc_check = crc16(substr($input, 0, length($input) - 3));
+	
+	# The CRCs should match, otherwise inform the user
+	if ( $crc_check != $rx_crc ) {
+		carp("Received invalid CRC in response from PIC, rx: " . $self->_dec2hex($rx_crc) . " -- calc: " . $self->_dec2hex($crc_check). "\n");
+	}
 
-    # If all is OK, then crc_check is 4 by now (0x04 = end of packet character).
-    if ($crc_check == 4) {
-	# data OK, remove trailing 4 from data
-	pop(@numresult);
-	# remove CRC from data
-	pop(@numresult);
-    } else {
-	carp("Received invalid CRC in response from PIC\n");
-    }
-   
-    return @numresult;
-    
+	return \@numresult;
+
 }
-
 
 # Read the hexfile containing the program memory data
 sub _read_hexfile {
 
-    my $self = shift;
+	my $self = shift;
 
-    open my $fh, '<', $self->{firmware};
-#        or croak "Could not open firmware hex file for reading: $!";
+	open my $fh, '<', $self->{firmware};
 
-    my $counter = 0;
-    my $offset  = 0;
+	#        or croak "Could not open firmware hex file for reading: $!";
 
-    while ( my $line = <$fh> ) {
-        chomp($line);
+	my $counter = 0;
+	my $offset  = 0;
 
-        $counter++;
+	while ( my $line = <$fh> ) {
+		chomp($line);
 
-        # Check for end of file marker
-        if ( $line =~ /^:[0-9A-F]{6}01/ ) {
+		$counter++;
 
-            #print "End of file marker found.\n";
-            last;
-        }
+		# Check for end of file marker
+		if ( $line =~ /^:[0-9A-F]{6}01/ ) {
 
-        # Translate extended Linear Address Records
-        if ( $line =~ /^:(02000004([0-9A-F]{4}))([0-9A-F]{2})/ ) {
-            $offset = hex($2);
-            $self->_check_crc( $1, $3, $counter );
+			#print "End of file marker found.\n";
+			last;
+		}
 
-            $self->_debug(2, "Detected HEX386 Extended Linear Address Record in hex file, using offset: $offset");
+		# Translate extended Linear Address Records
+		if ( $line =~ /^:(02000004([0-9A-F]{4}))([0-9A-F]{2})/ ) {
+			$offset = hex($2);
+			$self->_check_crc( $1, $3, $counter );
 
-            next;
-        }
+			$self->_debug( 2,
+"Detected HEX386 Extended Linear Address Record in hex file, using offset: $offset"
+			);
 
-        # Translate data records
-        if ( $line
-            =~ /^:(([0-9A-F]{2})([0-9A-F]{4})00([0-9A-F]+))([0-9A-F]{2})/ )
-        {
+			next;
+		}
 
-            # $1 = everything but the CRC
-            # $2 = nr of words
-            # $3 = address
-            # $4 = data
-            # $5 = crc
-            my $address = hex($3);
+		# Translate data records
+		if ( $line =~
+			/^:(([0-9A-F]{2})([0-9A-F]{4})00([0-9A-F]+))([0-9A-F]{2})/ )
+		{
 
-            # Check if we have valid CRC
-            $self->_check_crc( $1, $5, $counter );
+			# $1 = everything but the CRC
+			# $2 = nr of words
+			# $3 = address
+			# $4 = data
+			# $5 = crc
+			my $address = hex($3);
 
-            # If CRC was valid, add it to the memory datastructure
-            # Be sure to add the $offset from the Linear Address Record!
-            $self->_add_to_memory( $address + $offset, $4 );
+			# Check if we have valid CRC
+			$self->_check_crc( $1, $5, $counter );
 
-            next;
-        }
+			# If CRC was valid, add it to the memory datastructure
+			# Be sure to add the $offset from the Linear Address Record!
+			$self->_add_to_memory( $address + $offset, $4 );
 
-        # Catch invalid records
-        croak(
-            $self->{firmware} . " contains invalid info on line $counter." );
+			next;
+		}
 
-    }
+		# Catch invalid records
+		croak( $self->{firmware} . " contains invalid info on line $counter." );
 
-    close($fh);
+	}
+
+	close($fh);
 }
 
 # Verify the CRC of a line read from the HEX file
@@ -333,105 +357,154 @@ sub _read_hexfile {
 #   don't have to calculate it yourself when doing instruction
 #   level hacking :-) )
 sub _check_crc {
-    my ( $self, $data, $crc_in, $line_num ) = @_;
+	my ( $self, $data, $crc_in, $line_num ) = @_;
 
-    $crc_in = hex($crc_in);
+	$crc_in = hex($crc_in);
 
-    my $string = pack( "H*", $data );
-    my $crc_calc = ( 256 - unpack( "%a*", $string ) % 256 ) % 256;
+	my $string = pack( "H*", $data );
+	my $crc_calc = ( 256 - unpack( "%a*", $string ) % 256 ) % 256;
 
-    if ( $crc_calc != $crc_in ) {
-        my $nice_crc = $self->_dec2hex($crc_calc);
-        carp(
-            "Invalid CRC in '$self->{firmware}' on line $line_num, should be 0x$nice_crc"
-        );
-    }
+	if ( $crc_calc != $crc_in ) {
+		my $nice_crc = $self->_dec2hex($crc_calc);
+		carp(
+"Invalid CRC in '$self->{firmware}' on line $line_num, should be 0x$nice_crc"
+		);
+	}
 
 }
 
 # Helper function converting dec2hex
 sub _dec2hex {
 
-    my ( $self, $dec, $fill ) = @_;
+	my ( $self, $dec, $fill ) = @_;
 
-    my $fmt_string;
+	my $fmt_string;
 
-    if ( defined($fill) ) {
-        $fmt_string = "%0" . $fill . "X";
-    }
-    else {
-        $fmt_string = "%02X";
-    }
-    return sprintf( $fmt_string, $dec );
+	if ( defined($fill) ) {
+		$fmt_string = "%0" . $fill . "X";
+	} else {
+		$fmt_string = "%02X";
+	}
+	return sprintf( $fmt_string, $dec );
 }
 
 # Add an entry to the memory variable that will be used to flash the PIC
 sub _add_to_memory {
 
-    my ( $self, $address, $data_in ) = @_;
+	my ( $self, $address, $data_in ) = @_;
 
-    my $index;
-    my $mem_addr;
+	my $index;
+	my $mem_addr;
 
-    my @data = unpack( "a4" x ( length($data_in) / 4 ), $data_in );
+	my @data = unpack( "a4" x ( length($data_in) / 4 ), $data_in );
 
-    # Scan the line
-    for ( $index = 0; $index < scalar(@data); $index++ ) {
+	# Scan the line
+	for ( $index = 0 ; $index < scalar(@data) ; $index++ ) {
 
 # Calculate the actual address ($index * 2) because we read bytes and write shorts
-        $mem_addr = ( $index * 2 ) + $address;
+		$mem_addr = ( $index * 2 ) + $address;
 
-        # And add the info if the location is not defined yet
-        if ( !defined( $self->{_program}->{$mem_addr} ) ) {
-            $self->{_program}->{$mem_addr}->{data} = $data[$index];
-        }
-        else {
-            my $error
-                = sprintf "Memory location 0x%X defined twice in hex file.\n",
-                $mem_addr;
-            croak $error;
-        }
-    }
+		# And add the info if the location is not defined yet
+		if ( !defined( $self->{_program}->{$mem_addr} ) ) {
+			$self->{_program}->{$mem_addr}->{data} = $data[$index];
+		} else {
+			my $error
+			  = sprintf "Memory location 0x%X defined twice in hex file.\n",
+			  $mem_addr;
+			croak $error;
+		}
+	}
 
 }
 
 # Displays the program memory contents in hex format on the screen
 sub _print_program_memory {
-    my $self = shift;
+	my $self = shift;
 
-    my $counter = 0;
+	my $counter = 0;
 
-    foreach my $entry ( sort { $a <=> $b } keys $self->{_program} ) {
-        if ( ( $counter % 8 ) == 0 ) {
-            print "\n $counter\t: ";
-        }
-        print $self->{_program}->{$entry}->{data};
-        $counter++;
-    }
+	foreach my $entry ( sort { $a <=> $b } keys $self->{_program} ) {
+		if ( ( $counter % 8 ) == 0 ) {
+			print "\n $counter\t: ";
+		}
+		print $self->{_program}->{$entry}->{data};
+		$counter++;
+	}
 }
 
 # debug
 #   Debug print supporting multiple log levels
 sub _debug {
 
-    my ($self, $debuglevel, $logline) = @_;
+	my ( $self, $debuglevel, $logline ) = @_;
 
-    if ($debuglevel <= $self->verbose()) {
-	say "+$debuglevel= $logline\n";
-    } 
+	if ( $debuglevel <= $self->verbose() ) {
+		say "+$debuglevel= $logline";
+	}
 }
 
 # Print input string of characters as hex
 sub _hexdump {
-    my ($self, $s) = @_;
-    my $r = unpack 'H*', $s;
-    $s =~ s/[^ -~]/./g;
-    return $r . ' (' . $s . ')';
+	my ( $self, $s ) = @_;
+	my $r = unpack 'H*', $s;
+	$s =~ s/[^ -~]/./g;
+	return $r . ' (' . $s . ')';
 }
- 
+
+# Escape a string before sending it to the controller
+# See microchip AN1310 appendix A
+# Send in the payload data as a string, you get the escaped string out
+sub _escape {
+	my ($self, $s) = @_;
+	
+	# byte stuffing for the control characters in the data stream
+	$s =~ s/\x05/\x05\x05/g;
+	$s =~ s/\x04/\x05\x04/g;
+	$s =~ s/\x0F/\x05\x0F/g;
+	
+	return $s;
+	
+}
+
+# Strip the escape codes from the received string
+sub _unescape {
+	my ($self, $s) = @_;
+	
+	# <DLE>
+	$s =~ s/\x05\x05/\x05/g;
+
+	# <ETX>
+	$s =~ s/\x05\x04/\x04/g;
+
+	# <STX>
+	$s =~ s/\x05\x0F/\x0F/g;
+	
+	return $s;
+}
+
+# Convert an int to the string format required by the bootloader
+#  int -> <byte_low><byte_high>
+sub _int2str {
+	my ($self, $num) = @_;
+	
+	my $lsb = $num % 256;
+	my $msb = ($num - $lsb) / 256;
+	
+	my $resp = $self->_dec2hex($lsb) . $self->_dec2hex($msb);
+	return $resp;
+}
+
+# Convert string to int as communicated by the bootloader
+# <byte_low><byte_high> -> int
+sub _str2int {
+	my ($self, $num) = @_;
+	return 0;	
+}
+
+
 # Speed up the Moose object construction
 __PACKAGE__->meta->make_immutable;
-
+no Moose;
 1;
 
 # ABSTRACT: Bootloader host software for Microchip PIC devices
@@ -463,6 +536,24 @@ The hex file that is to be programmed into the target device. Upon creation of t
 The target device where to send the firmware to. This can be either a serial port object (e.g. /dev/ttyUSB0) or a TCP socket (e.g. 192.168.1.52:10001).
 
 =back
+
+=head2 C<connect_target>
+
+Make a connection to the target device. This function will return a hash containing information on the response containing the following elements:
+
+=over 
+
+=item firmware version
+
+=item type of pic we're connected to ('PIC16' of 'PIC18')
+
+=back
+
+The other elements of the response of the  
+
+=head2 C<version>
+
+Reports the version of the bootloader firmware running on the device as [major].[minor].
 
 =head2 C<BUILD>
 
