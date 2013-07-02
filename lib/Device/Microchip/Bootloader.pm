@@ -67,15 +67,15 @@ sub connect_target {
 	$self->_debug( 1, "Anybody home?" );
 	$self->_write_packet("00");
 
-	my $bytes = $self->_read_packet(20);
+	my $response = $self->_read_packet(20);
 
 	# Process the info that was returned
 	#$self->_debug( 4, "Got response: " . Dumper($bytes));
-	$self->{'bootloader_version_minor'} = hex(${$bytes}[2]);
-	$self->{'bootloader_version_major'} = hex(${$bytes}[3]);
+	$self->{'bootloader_version_minor'} = $self->_get_byte($response, 2);
+	$self->{'bootloader_version_major'} = $self->_get_byte($response, 3);
 	
 	
-	return $bytes;
+	return $response;
 
 }
 
@@ -90,12 +90,46 @@ sub bootloader_version {
 sub read_eeprom {
 	my ($self, $start_addr, $numbytes) = @_;
 	
+	croak "Please enter start address" if (!defined($start_addr));
+	croak "Please tell how many bytes to read" if (!defined($numbytes));
+		
 	my $command = "05" . $self->_int2str($start_addr) . "0000" . $self->_int2str($numbytes);
 	
 	$self->_write_packet($command);
 	my $response = $self->_read_packet(10);
 	
 	return $response;
+}
+
+sub read_flash {
+	my ($self, $start_addr, $numbytes) = @_;
+
+	croak "Please enter start address" if (!defined($start_addr));
+	croak "Please tell how many bytes to read" if (!defined($numbytes));
+		
+	my $command = "01" . $self->_int2flashstr($start_addr) . "00" . $self->_int2str($numbytes);
+	
+	$self->_write_packet($command);
+	my $response = $self->_read_packet(10);
+	
+	return $response;
+	
+}
+
+sub erase_flash {
+	my ($self, $stop_addr, $pages) = @_;
+
+	croak "Please enter stop address" if (!defined($stop_addr));
+	croak "Please tell how many pages to erase" if (!defined($pages));
+		
+	my $command = "03" . $self->_int2flashstr($stop_addr) . "00" . $self->_dec2hex($pages);
+	
+	$self->_write_packet($command);
+	my $response = $self->_read_packet(10);
+	
+	return $response;
+	
+	
 }
 
 # open the port to a device, be it a serial port or a socket
@@ -282,7 +316,14 @@ sub _parse_response {
 		carp("Received invalid CRC in response from PIC, rx: " . $self->_dec2hex($rx_crc) . " -- calc: " . $self->_dec2hex($crc_check). "\n");
 	}
 
-	return \@numresult;
+	# Convert back to string of hex characters
+	# TODO optimize this into pack
+	#my $res_string = pack ("C");
+	my $res_string;
+	foreach (@numresult) {
+		$res_string .= sprintf("%02X", $_);
+	}
+	return $res_string;
 
 }
 
@@ -494,6 +535,20 @@ sub _int2str {
 	return $resp;
 }
 
+# Convert an int to the string format required for flash access
+# int -> <byte_low><bye_high><bytes_upper>
+# TODO integrate this with the funtion above and refactor
+sub _int2flashstr {
+	my ($self, $num) = @_;
+	
+	my $lsb = $num % 256;
+	my $msb = (($num - $lsb) / 256) % 256;
+	my $usb = ($num - 256 * $msb - $lsb ) / 256 / 256 ;
+	
+	my $resp = $self->_dec2hex($lsb) . $self->_dec2hex($msb) . $self->_dec2hex($usb);
+	return $resp;	
+}
+
 # Convert string to int as communicated by the bootloader
 # <byte_low><byte_high> -> int
 sub _str2int {
@@ -501,6 +556,17 @@ sub _str2int {
 	return 0;	
 }
 
+# Extract a byte from the response string
+# Pass string and byte number (first byte is 0)
+# and you get the integer value back
+sub _get_byte {
+	my ($self, $response, $offset) = @_;
+	
+	my $byte = substr($response, $offset*2, 2);
+	
+	return hex($byte);
+	
+}
 
 # Speed up the Moose object construction
 __PACKAGE__->meta->make_immutable;
