@@ -36,28 +36,28 @@ if ($pid == 0) {
     my $bytes = sysread $client, $buf, 2048;
     is $bytes, 5, 'sync pakcet length';
     is $buf, "\x0F\x00\x00\x00\x04", "Got bootloader info request";
-    my $resp = "\x0F\x00\x00\x05\x05\x01\xFF\x84\x01\x02\x03\x00\x78\x94\x04";
+    my $resp = "\x0F\x00\x00\x05\x05\x01\xFF\x84\x01\x02\x03\x00\x31\x42\x04";
     syswrite $client, $resp, length($resp);
     # Handle EEPROM read request
     $sel->can_read(10*$debug_mult) or die;
     $bytes = sysread $client, $buf, 2048;
     is $bytes, 13, "Request EEPROM read count OK";
-    is $buf, "\x0f\x05\x05\x00\x00\x00\x00\x05\x04\x00\x57\xc0\x04", "EEPROM read command OK";
-    $resp = "\x0F\x31\x32\x33\x34\x05\x04\xBA\x04";
+    is $buf, "\x0f\x05\x05\x00\x00\x00\x00\x05\x04\x00\x63\xb5\x04", "EEPROM read command OK";
+    $resp = "\x0F\x31\x32\x33\x34\x89\xD7\x04";
     syswrite $client, $resp, length($resp);
     # Handle Flash read request
     $sel->can_read(10*$debug_mult) or die;
     $bytes = sysread $client, $buf, 2048;
     is $bytes, 11, "Request FLASH read count OK";
-    is $buf, "\x0f\x01\x00\x00\x00\x00\x0a\x00\x16\x60\x04", "FLASH read command OK";
-    $resp = "\x0F\x01\x02\x03\x05\x04\x05\x05\x06\x07\x08\x09\x00\x04\x42\x04";
+    is $buf, "\x0f\x01\x00\x00\x00\x00\x0a\x00\xaa\x57\x04", "FLASH read command OK";
+    $resp = "\x0F\x01\x02\x03\x05\x04\x05\x05\x06\x07\x08\x09\x00\x01\x6C\x04";
     syswrite $client, $resp, length($resp);
     # Handle Flash erase page request
     $sel->can_read(10*$debug_mult) or die;
     $bytes = sysread $client, $buf, 2048;
     is $bytes, 10, "Request FLASH erase count OK";
-    is $buf, "\x0f\x03\x00\x01\x00\x00\x02\x80\x0e\x04", "FLASH erase command OK";
-    $resp = "\x0F\x03\x00\x00\x04";
+    is $buf, "\x0f\x03\x00\x01\x00\x00\x02\x16\x98\x04", "FLASH erase command OK";
+    $resp = "\x0F\x03\x63\x30\x04";
     syswrite $client, $resp, length($resp);
     
 
