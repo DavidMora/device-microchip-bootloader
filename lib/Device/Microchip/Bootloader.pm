@@ -74,6 +74,7 @@ sub connect_target {
 	$self->{'bootloader_version_minor'} = $self->_get_byte($response, 2);
 	$self->{'bootloader_version_major'} = $self->_get_byte($response, 3);
 	
+	$self->_debug(3, 'Connected to bootloader version ' . $self->_get_byte($response, 3) . "." . $self->_get_byte($response, 2));
 	
 	return $response;
 
@@ -186,7 +187,7 @@ sub _write_packet {
 	# Create packet for transmission
 	my $string = pack( "H*", $data );
 
-	my $crc = crc16($string);
+	my $crc = $self->_crc16($string);
 	my $packet = $string . pack( "C", $crc % 256 ) . pack( "C", $crc / 256 );
 
 	$packet = $self->_escape($packet);
@@ -265,6 +266,7 @@ sub _read_packet {
 	# We get here if the eval exited normally
 	$result = $self->_parse_response($result);
 
+	$self->_debug(3, "RX: " . $result);
 	return $result;
 }
 
@@ -308,8 +310,9 @@ sub _parse_response {
 	my $rx_crc = pop(@numresult);
 	$rx_crc = $rx_crc * 256 + pop(@numresult);
 	
-	# Calculate the CRC on the received string minus the CRC and trailing 0x04
-	$crc_check = crc16(substr($input, 0, length($input) - 3));
+	$input = substr($input, 0, -2);
+	
+	$crc_check = $self->_crc16($input);
 	
 	# The CRCs should match, otherwise inform the user
 	if ( $crc_check != $rx_crc ) {
@@ -325,6 +328,20 @@ sub _parse_response {
 	}
 	return $res_string;
 
+}
+
+# CRC16 calculation 'the microchip way'.
+# In a separate function to be able to test
+sub _crc16 {
+	my ($self, $input) = @_;
+	
+	# Calculate the CRC on the received string minus the CRC and trailing 0x04
+	my $crx = Digest::CRC->new(width=>16, init=>0, xorout=>0, refout=>0,poly=>0x1021,refin=>0,cont=>1);
+	$crx->add($input);
+	my $crc_check = $crx->digest;
+	
+	return $crc_check;
+	
 }
 
 # Read the hexfile containing the program memory data

@@ -35,7 +35,12 @@ my $bigint   = 1025;
 my $small_string = $loader->_int2str($smallint);
 my $big_string   = $loader->_int2str($bigint);
 
-is $small_string, "\x0A\x00", "Small int2str";
-is $big_string, "\x01\x04",   "Big int2str";
+is $small_string, "0A00", "Small int2str";
+is $big_string, "0104",   "Big int2str";
+
+# Verify the CRC funcions
+my $input = "\x00\x04\x01\x05\xFF\x84\x00\xFC\x00\x00";
+my $crc = $loader->_crc16($input);
+is $crc, 0xCBC1, "CRC calculates according to Microchip implementation";
 
 done_testing();
