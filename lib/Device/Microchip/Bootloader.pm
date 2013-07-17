@@ -135,6 +135,8 @@ sub read_flash {
 	
 }
 
+# Note: stop address is the first address of the last page to erase
+# Note: this erases the goto bootloader instruction too, so ensure to save it before erasing the first page in program memory
 sub erase_flash {
 	my ($self, $stop_addr, $pages) = @_;
 
