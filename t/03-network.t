@@ -72,6 +72,14 @@ if ($pid == 0) {
     is $buf, "\x0f\x02\x00\x00\x00\x00\x02\x00\x81\x06\x04", "CRC request command OK";
     $resp = "\x0F\xAA\xBB\xCC\xDD\x04";
     syswrite $client, $resp, length($resp);
+    # Handle the flash write request
+    $sel->can_read(10*$debug_mult) or die;
+    $bytes = sysread $client, $buf, 2048;
+    is $bytes, 139, "Flash write request received";
+    my $header = substr($buf, 0, 8);
+    is $header, "\x0f\x05\x04\x00\x10\x00\x00\x01", "Start of packet looks fine";
+    $resp = "\x0F\x04\x84\x40\x04";
+    syswrite $client, $resp, length($resp);
 
 } elsif ($pid) {
     #parent
@@ -105,7 +113,9 @@ if ($pid == 0) {
 	is_deeply $data, {0 => "BBAA", 1 => "DDCC"}, "Read the CRC of two pages";
 	
 	# Try to program a page
-	#$data = $loader->	
+	$data = $loader->write_flash(0x1000, "0201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
+    is $data, "04", "Write flash command OK";
+    
     #is ($loader->program, 1, 'Programming over TCP done');
     waitpid $pid, 0;
     done_testing();

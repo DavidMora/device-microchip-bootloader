@@ -151,6 +151,30 @@ sub erase_flash {
 	
 }
 
+sub write_flash {
+	my ($self, $start_addr, $data) = @_;
+	
+	# TODO check the length of data is a multiple of the flash block write size
+	
+	my $dlen = length($data);
+	if ($dlen % (64*4)) {
+		croak "Trying to write data that is not a multiple of the flash block write size but $dlen";
+	}
+	
+	# We need the number of pages, so we divied by flash block size. One byte in the string is two chars so we need to divide by two too.
+	$dlen /= 64 * 2;
+	
+	my $command = "04" . $self->_int2flashstr($start_addr) . "00" . $self->_dec2hex($dlen) . $data;
+	
+	$self->_write_packet($command);
+	my $response = $self->_read_packet(10);
+
+	# TODO check the response in this function and just return pass/fail
+		
+	return $response;
+	
+}
+
 sub read_flash_crc {
 	
 	my ($self, $start_addr, $blocks) = @_;
@@ -196,30 +220,30 @@ sub _device_open {
 			require Symbol;
 			$fh = Symbol::gensym();
 			my $sport;
-			if ($^O =~ /win/i) { 
-   				require Win32::SerialPort;
-   				import  Win32::SerialPort;
-
-				if ($dev =~ /^COM(\d+)/) {
-					my $portnum = $1;
-					if ($portnum > 9) {
-					# High port number, work around windows limitation of single-digit port numbers
-						$dev = "\\\\.\\COM" . $portnum;
-					}					
-				} else {
-					croak "I don't understand '$dev' as comport device on Windows";
-				}  				
-
-				#my $port = Win32::SerialPort->new($dev, 1) || croak("Could not open serial port: $!");
-				    
-				$sport = tie( *$fh, 'Win32::SerialPort', $dev, 1 )
-			  		or croak("Could not tie serial port to file handle: $^E\n");
-			} else { 
+#			if ($^O =~ /win/i) { 
+#   				require Win32::SerialPort;
+#   				import  Win32::SerialPort;
+#
+#				if ($dev =~ /^COM(\d+)/) {
+#					my $portnum = $1;
+#					if ($portnum > 9) {
+#					# High port number, work around windows limitation of single-digit port numbers
+#						$dev = "\\\\.\\COM" . $portnum;
+#					}					
+#				} else {
+#					croak "I don't understand '$dev' as comport device on Windows";
+#				}  				
+#
+#				#my $port = Win32::SerialPort->new($dev, 1) || croak("Could not open serial port: $!");
+#				    
+#				$sport = tie( *$fh, 'Win32::SerialPort', $dev, 1 )
+#			  		or croak("Could not tie serial port to file handle: $^E\n");
+#			} else { 
 				require Device::SerialPort;
 				import Device::SerialPort qw( :PARAM :STAT 0.07 );
 				$sport = tie( *$fh, 'Device::SerialPort', $dev )
 			  		or croak("Could not tie serial port to file handle: $!\n");
-			}
+#			}
 			$sport->baudrate($baud);
 			$sport->databits(8);
 			$sport->parity("none");
