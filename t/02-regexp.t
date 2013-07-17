@@ -31,12 +31,15 @@ is $unescaped, "\x00\x01\x02\x03\x04\x05\x06", "Standalone unescape test";
 # Verify the int to string and reverse functions
 my $smallint = 10;
 my $bigint   = 1025;
+my $str      = "BEBA";
 
 my $small_string = $loader->_int2str($smallint);
 my $big_string   = $loader->_int2str($bigint);
+my $babe         = $loader->_str2int($str);
 
 is $small_string, "0A00", "Small int2str";
 is $big_string, "0104",   "Big int2str";
+is $babe, hex("BABE"), "str2int check";
 
 # Verify the CRC funcions
 my $input = "\x00\x04\x01\x05\xFF\x84\x00\xFC\x00\x00";

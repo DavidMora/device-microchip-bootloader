@@ -34,10 +34,16 @@ if ($pid == 0) {
     my $buf;
     # Handle bootloader info request
     my $bytes = sysread $client, $buf, 2048;
-    is $bytes, 5, 'sync pakcet length';
+    is $bytes, 5, 'sync packet length';
     is $buf, "\x0F\x00\x00\x00\x04", "Got bootloader info request";
     my $resp = "\x0F\x00\x00\x05\x05\x01\xFF\x84\x01\x02\x03\x00\x31\x42\x04";
     syswrite $client, $resp, length($resp);
+    # Handle PIC version request
+    $bytes = sysread $client, $buf, 2048;
+    is $bytes, 11, 'PIC device packet length';
+    is $buf, "\x0F\x01\xFE\xFF\x3F\x00\x02\x00\xB4\x6D\x04", "Got PIC type request";
+    $resp = "\x0F\x71\x02\x00\x5A\x89\x04";
+    syswrite $client, $resp, length($resp);    
     # Handle EEPROM read request
     $sel->can_read(10*$debug_mult) or die;
     $bytes = sysread $client, $buf, 2048;
@@ -59,8 +65,13 @@ if ($pid == 0) {
     is $buf, "\x0f\x03\x00\x01\x00\x00\x02\x16\x98\x04", "FLASH erase command OK";
     $resp = "\x0F\x03\x63\x30\x04";
     syswrite $client, $resp, length($resp);
-    
-
+    # Handle the request for CRC of two pages
+    $sel->can_read(10*$debug_mult) or die;
+    $bytes = sysread $client, $buf, 2048;
+    is $bytes, 11, "Request CRC of two pages OK";
+    is $buf, "\x0f\x02\x00\x00\x00\x00\x02\x00\x81\x06\x04", "CRC request command OK";
+    $resp = "\x0F\xAA\xBB\xCC\xDD\x04";
+    syswrite $client, $resp, length($resp);
 
 } elsif ($pid) {
     #parent
@@ -75,6 +86,7 @@ if ($pid == 0) {
 	my $version = $loader->bootloader_version();
 	is $version->{'major'}, 1, 'Major version of the bootloader OK';
 	is $version->{'minor'}, 5, 'Minor version of the bootloader OK';
+	is $loader->{'device_id'}, 625, 'Talking to the correct type of PIC';
 	
 	# Try to read an EEPROM location
 	my $data = $loader->read_eeprom(0,4);
@@ -87,7 +99,13 @@ if ($pid == 0) {
 	# Try to erase 2 flash pages
 	$data = $loader->erase_flash(0x100, 2);
 	is $data, "03", "Erased 2 pages";
-		
+	
+	# Request the CRC of two pages
+	$data = $loader->read_flash_crc(0x0, 2);
+	is_deeply $data, {0 => "BBAA", 1 => "DDCC"}, "Read the CRC of two pages";
+	
+	# Try to program a page
+	#$data = $loader->	
     #is ($loader->program, 1, 'Programming over TCP done');
     waitpid $pid, 0;
     done_testing();

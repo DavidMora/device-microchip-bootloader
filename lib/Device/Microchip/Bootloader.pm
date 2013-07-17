@@ -51,6 +51,17 @@ sub program {
 	return 0 if !$self->{_connected};
 
 	# TODO complete this function to do the actual programming
+	# Calculate the CRC of the flash blocks (soll-wert)
+	
+	# Request the CRCs of the flash blocks from the device (ist-wert)
+	
+	# Make the erase-write list
+	
+	# Add the last page by default
+	
+	# Erase in descending order
+	
+	# Write in ascending order
 	
 	return 1;
 }
@@ -75,6 +86,13 @@ sub connect_target {
 	$self->{'bootloader_version_major'} = $self->_get_byte($response, 3);
 	
 	$self->_debug(3, 'Connected to bootloader version ' . $self->_get_byte($response, 3) . "." . $self->_get_byte($response, 2));
+
+	# We're talking with a PIC18F device, so request the device ID residing in flash at location 0x3FFFFE
+	my $device_id = $self->read_flash(0x3FFFFE, 2);
+	$self->{'device_id'} = $self->_str2int($device_id);
+
+	$self->_debug(3, 'Connected to PIC type ' . $self->{'device_id'});
+	
 	
 	return $response;
 
@@ -133,6 +151,35 @@ sub erase_flash {
 	
 }
 
+sub read_flash_crc {
+	
+	my ($self, $start_addr, $blocks) = @_;
+	
+	croak "Please enter start address" if (!defined($start_addr));
+	croak "Please tell how many blocks to read" if (!defined($blocks));
+	
+	my $command = "02" . $self->_int2flashstr($start_addr) . "00" . $self->_int2str($blocks);
+	
+	$self->_write_packet($command);
+	# Note, this is an exceptional command that has no CRC, hence we pass the second parameter '1'
+    my $response = $self->_read_packet(10, 1);
+    
+    my $len = length($response);
+    
+    # Split the result in CRCs per page
+    my $loper = 0;
+    my $crcs;
+    
+    while ($loper < $len) {
+    	my $page_num = $loper / 4;
+    	my $lsb = substr($response, $loper, 2);
+    	my $msb = substr($response, $loper+2, 2);
+    	$loper += 4;
+    	$crcs->{$page_num} = $msb . $lsb;	
+    }
+    
+    return $crcs;
+}
 # open the port to a device, be it a serial port or a socket
 sub _device_open {
 	my $self = shift;
@@ -141,17 +188,38 @@ sub _device_open {
 	my $fh;
 	my $baud = 115200;
 
-	if ( $dev =~ /\// ) {
+	if ( $dev =~ /\// || $dev =~ /^COM./ ) {
 		if ( -S $dev ) {
 			$fh = IO::Socket::UNIX->new($dev)
 			  or croak("Unix domain socket connect to '$dev' failed: $!\n");
 		} else {
 			require Symbol;
-			require Device::SerialPort;
-			import Device::SerialPort qw( :PARAM :STAT 0.07 );
 			$fh = Symbol::gensym();
-			my $sport = tie( *$fh, 'Device::SerialPort', $dev )
-			  or $self->argh("Could not tie serial port to file handle: $!\n");
+			my $sport;
+			if ($^O =~ /win/i) { 
+   				require Win32::SerialPort;
+   				import  Win32::SerialPort;
+
+				if ($dev =~ /^COM(\d+)/) {
+					my $portnum = $1;
+					if ($portnum > 9) {
+					# High port number, work around windows limitation of single-digit port numbers
+						$dev = "\\\\.\\COM" . $portnum;
+					}					
+				} else {
+					croak "I don't understand '$dev' as comport device on Windows";
+				}  				
+
+				#my $port = Win32::SerialPort->new($dev, 1) || croak("Could not open serial port: $!");
+				    
+				$sport = tie( *$fh, 'Win32::SerialPort', $dev, 1 )
+			  		or croak("Could not tie serial port to file handle: $^E\n");
+			} else { 
+				require Device::SerialPort;
+				import Device::SerialPort qw( :PARAM :STAT 0.07 );
+				$sport = tie( *$fh, 'Device::SerialPort', $dev )
+			  		or croak("Could not tie serial port to file handle: $!\n");
+			}
 			$sport->baudrate($baud);
 			$sport->databits(8);
 			$sport->parity("none");
@@ -206,7 +274,7 @@ sub _write_packet {
 #   received after <timeout> seconds.
 sub _read_packet {
 
-	my ( $self, $timeout) = @_;
+	my ( $self, $timeout, $skip_crc) = @_;
 
 	my @numresult;
 	my $result;
@@ -264,7 +332,7 @@ sub _read_packet {
 	#return 1 if ($sync);
 
 	# We get here if the eval exited normally
-	$result = $self->_parse_response($result);
+	$result = $self->_parse_response($result, $skip_crc);
 
 	$self->_debug(3, "RX: " . $result);
 	return $result;
@@ -274,7 +342,7 @@ sub _read_packet {
 # Decode the response from the embedded device, i.e. remove
 # protocol overhead, and return the remaining result.
 sub _parse_response {
-	my ( $self, $input ) = @_;
+	my ( $self, $input, $skip_crc ) = @_;
 
 	# Verify packet structure <STX><STX><...><ETX>
 	if (
@@ -302,23 +370,24 @@ sub _parse_response {
 	# Process the received data
 	my @numresult = unpack( "C*", $input );
 
-	# Verify the CRC
-	my $crc_check = 0;
+	if (!defined($skip_crc)) {
+		# Verify the CRC
+		my $crc_check = 0;
 
-
-	# Received CRC
-	my $rx_crc = pop(@numresult);
-	$rx_crc = $rx_crc * 256 + pop(@numresult);
+		# Received CRC
+		my $rx_crc = pop(@numresult);
+		$rx_crc = $rx_crc * 256 + pop(@numresult);
 	
-	$input = substr($input, 0, -2);
+		$input = substr($input, 0, -2);
 	
-	$crc_check = $self->_crc16($input);
+		$crc_check = $self->_crc16($input);
 	
-	# The CRCs should match, otherwise inform the user
-	if ( $crc_check != $rx_crc ) {
-		carp("Received invalid CRC in response from PIC, rx: " . $self->_dec2hex($rx_crc) . " -- calc: " . $self->_dec2hex($crc_check). "\n");
+		# The CRCs should match, otherwise inform the user
+		if ( $crc_check != $rx_crc ) {
+			carp("Received invalid CRC in response from PIC, rx: " . $self->_dec2hex($rx_crc) . " -- calc: " . $self->_dec2hex($crc_check). "\n");
+		}
 	}
-
+	
 	# Convert back to string of hex characters
 	# TODO optimize this into pack
 	#my $res_string = pack ("C");
@@ -570,7 +639,12 @@ sub _int2flashstr {
 # <byte_low><byte_high> -> int
 sub _str2int {
 	my ($self, $num) = @_;
-	return 0;	
+	
+	my $lsb = hex(substr($num, 0, 2));
+	my $msb = hex(substr($num, 2, 2));
+	
+	return 256*$msb + $lsb;
+	
 }
 
 # Extract a byte from the response string
