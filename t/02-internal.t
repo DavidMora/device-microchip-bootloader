@@ -12,7 +12,7 @@ use Test::More;
 BEGIN { use_ok 'Device::Microchip::Bootloader'; }
 
 
-my $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/test.hex', device => '/dev/ttyUSB0');
+my $loader = Device::Microchip::Bootloader->new(firmware => 't/stim/short.hex', device => '/dev/ttyUSB0');
 ok $loader, 'object created';
 
 # Verify the escaping/unescaping of communication between the bootloader and the software
@@ -46,4 +46,16 @@ my $input = "\x00\x04\x01\x05\xFF\x84\x00\xFC\x00\x00";
 my $crc = $loader->_crc16($input);
 is $crc, 0xCBC1, "CRC calculates according to Microchip implementation";
 
+# Verify the swapping of the program memory
+my $app_entry = 0xFC00 - 2;
+$loader->_rewrite_entrypoints("BEEF");
+is $loader->{_program}->{0}->{data}, "BEEF", "Rewrote bootloader entry point";
+is $loader->{_program}->{$app_entry}->{data}, "57EF", "Relocated entry point";
+
+# Verify the function to get blocks from the source hex to program
+$data = $loader->_get_writeblock(0);
+is $data, "BEEF00F0FFFFFFFFFACF12F0FBCF13F0E9CF14F059EF00F0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "Got correct write block";
+$data = $loader->_get_writeblock(100);
+is $data, "", "Empty write block returns empty string";
+ 
 done_testing();

@@ -570,6 +570,19 @@ sub _add_to_memory {
 
 }
 
+# Rewrite the application entry point just before the bootloader in flash and replace the application
+# entry point at org 0x00 with the entry point of the bootloader
+sub _rewrite_entrypoints {
+	my ($self, $btldr) = @_;
+	
+	# Insert 'goto application' instruction just before the bootloader
+	my $app_entry_loc = 0xFC00 - 2;
+	my $app_entry     = $self->{_program}->{0}->{data};
+	$self->{_program}->{$app_entry_loc}->{data} = $app_entry;
+	# Insert the 'goto bootloader' at 0x00
+	$self->{_program}->{0}->{data} = $btldr;
+}
+
 # Displays the program memory contents in hex format on the screen
 sub _print_program_memory {
 	my $self = shift;
@@ -583,6 +596,35 @@ sub _print_program_memory {
 		print $self->{_program}->{$entry}->{data};
 		$counter++;
 	}
+}
+
+# Get the next page from the programming memory to be programmed.
+# Fill with 0xFF when no defined
+# First page has pagenum 0
+# Returns a string in case the data needs to be written, returns "" when a write is not required.
+sub _get_writeblock {
+	my ($self, $pagenum) = @_;
+	
+	my $blocksize = 64; # ! in bytes
+	my $block;
+	
+	my $startaddress = $pagenum * $blocksize;
+	
+	my $count = 0;
+	
+	while ($count  < $blocksize ) {
+		# If the data is not present in the hex file, fill with FFFF
+		$block .= $self->{_program}->{$startaddress + $count}->{data} || "FFFF";
+		$count+=2;
+	}	
+	
+	# If all was FFFF then we don't need to write
+	if ($block =~ /(FF){$blocksize}/) {
+		return "";
+	} else {
+		return $block;
+	}
+	
 }
 
 # debug
