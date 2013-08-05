@@ -17,9 +17,9 @@ getopt( 'dfv', \%opts );
 
 # Create the object
 my $loader = Device::Microchip::Bootloader->new(
-	firmware => $opts{f},
-	device   => $opts{d},
-	verbose  => $opts{v} || 0
+    firmware => $opts{f},
+    device   => $opts{d},
+    verbose  => $opts{v} || 0
 );
 
 # Connect to the target device over the specified connection
@@ -40,17 +40,16 @@ $loader->erase_flash( 0xFC00, 64 );
 # Write pages, ensure we try to write up to the bootloader (that starts a block 1008)
 my $block = 0;
 while ( $block < 1008 ) {
-	my $data = $loader->_get_writeblock($block);
-	if ( $data ne "" ) {
-		say ("Writing block $block");
-		$loader->write_flash( $block * 64, $data );
-	}
-	$block++;
+    my $data = $loader->_get_writeblock($block);
+    if ( $data ne "" ) {
+        say("Writing block $block");
+        $loader->write_flash( $block * 64, $data );
+    }
+    $block++;
 }
 
 # Fire in dze hall!
 $loader->launch_app();
-
 
 # ABSTRACT: Bootloader for Microchip PIC devices
 # PODNAME: ploader.pl
@@ -68,8 +67,8 @@ ploader.pl -d <device> -f <hexfile>
 Where C<device> is either a serial port or a TCP socket (format host:portnumber)
 and C<hexfile> is the Intel hex file to be loaded into the PIC.
 
-Optionally, a parameter -v <verboselevel> can be passed to modify the verbosity 
-of the Device::Microchip::Bootloader module. Defaults to '0', set to '3' for useful 
+Optionally, a parameter -v <verboselevel> can be passed to modify the verbosity
+of the Device::Microchip::Bootloader module. Defaults to '0', set to '3' for useful
 debugging.
 
 =cut
