@@ -1,100 +1,75 @@
-#! /usr/bin/perl -w
+#! /usr/bin/env perl
 
 use strict;
 use warnings;
 use 5.012;
 use autodie;
+use Pod::Help qw(-h --help);
+use Getopt::Std;
 use Device::Microchip::Bootloader;
+
+my %opts;
+
+# Extract the power and area file options if they are passed.
+getopt( 'dfv', \%opts );
+
+#Pod::Help->help() if ( !defined $opts{d} && !defined $opts{h} );
+
+# Create the object
+my $loader = Device::Microchip::Bootloader->new(
+	firmware => $opts{f},
+	device   => $opts{d},
+	verbose  => $opts{v} || 0
+);
+
+# Connect to the target device over the specified connection
+$loader->connect_target();
+
+my $response;
+
+# Load the bootloader goto that is located at the beginning of the flash.
+# TODO check this is EF01F07E for 18F46J11
+$response = $loader->read_flash( 0, 4 );
+
+# Rewrite the entry point for the application and the bootloader in the memory that will be programmed.
+$loader->_rewrite_entrypoints($response);
+
+# Erase the device in 1k blocks, so 64 pages are required
+$loader->erase_flash( 0xFC00, 64 );
+
+# Write pages, ensure we try to write up to the bootloader (that starts a block 1008)
+my $block = 0;
+while ( $block < 1008 ) {
+	my $data = $loader->_get_writeblock($block);
+	if ( $data ne "" ) {
+		say ("Writing block $block");
+		$loader->write_flash( $block * 64, $data );
+	}
+	$block++;
+}
+
+# Fire in dze hall!
+$loader->launch_app();
+
 
 # ABSTRACT: Bootloader for Microchip PIC devices
 # PODNAME: ploader.pl
 
+=head1 DESCRIPTION
 
-#if ( defined $ARGV[0] ) {
+This scripts implements a Microchip bootloader interface over serial port or over a TCP socket.
+The PIC needs to be pre-programmed with a bootloader that meets the spec of AN1310A.
 
-    # Create the object
-    my $loader = Device::Microchip::Bootloader->new( firmware => 'blinky.hex', device => '192.168.1.57:10002', verbose => 0);
-    #my $loader = Device::Microchip::Bootloader->new( firmware => '../t/stim/test.hex');
+=head1 SYNOPSYS
 
-	$loader->_rewrite_entrypoints("BEEF");
-    $loader->_print_program_memory();
-	    
-	$loader->connect_target();
-	my $data;
-	
-    #$loader->_print_program_memory();
-    #my $data = $loader->read_eeprom(0, 4);
-	#say "Read from EEPROM: $data";
-	$data = $loader->read_flash(0, 2);
-	say "Read goto bootloader from FLASH:  $data";
-	$data = $loader->read_flash(0xFC00, 100);
-	say "Read from FLASH:  $data";
+Usage:
+ploader.pl -d <device> -f <hexfile>
 
-	# Prepare some pages
-	#$data = $loader->write_flash(64, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-	#$data = $loader->write_flash(1024, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-	#$data = $loader->write_flash(2048, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-	
-	# Erase a page
-	#$data = $loader->erase_flash(2048, 3);
-	#say "Erased flash: $data";
-	
-	
-	# Read the bootloader location, expecting a 'goto 0xfc02' here
-	my $goto_bootloader = $loader->read_flash(0x0000, 2);
-	
-	say "Read goto bootloader: $goto_bootloader";
-	
-		
-	# Erase the device
-	$data = $loader->erase_flash(0xFC00, 64);
-	say "Erased flash: $data";
-#
-#	$data = $loader->read_flash(0xFC00, 100);
-#	say "Read from FLASH:  $data";
-#	$data = $loader->read_flash(0xFC00 - 64, 64);
-#	say "Read from FLASH:  $data";
-#
-#
-#	# Try to overwrite the bootloader
-#	$data = $loader->write_flash(0xFC00, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-#	say "Wrote flash: $data";
-#	$data = $loader->write_flash(0xFC00 - 64, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-#	say "Wrote flash: $data";
-#	
-#	$data = $loader->read_flash(0xFC00, 100);
-#	say "Read from FLASH:  $data";
-#	
-#	$data = $loader->read_flash(0xFC00 - 64, 100);
-#	say "Read from FLASH:  $data";
-#
-#	$data = $loader->erase_flash(0xFC00, 3);
-#	say "Erased flash: $data";	
-#	
-#	$data = $loader->read_flash(0xFC00 - 64, 100);
-#	say "Read from FLASH:  $data";	
-	
-	
-	# Erase the full chip
-	#$data = $loader->erase_flash(0xFC00, )
-	
-	# 	
-	# Write a page
-	#$data = $loader->write_flash(0x1000, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-	#say "Wrote flash: $data";
-	#$data = $loader->write_flash(64, "0301000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000000201000000000000000000000000000000000000020100000000000000000000000000000000000002010000000000000000000000000000000000001111222233334444");	
-	#say "Wrote flash: $data";
-	
-	# Read the CRCs for the complete flash
-	#$data = $loader->read_flash_crc(0, 32);
-	#say "Read CRCs:";
-	#foreach my $key (sort keys %{$data}) {
-	#	print "$key : $data->{$key}\n";
-	#}
-	
-	
+Where C<device> is either a serial port or a TCP socket (format host:portnumber)
+and C<hexfile> is the Intel hex file to be loaded into the PIC.
 
-#} else {
-#    die
-#"Please pass the folder with the files that need to be parsed as command line option";
-#}
+Optionally, a parameter -v <verboselevel> can be passed to modify the verbosity 
+of the Device::Microchip::Bootloader module. Defaults to '0', set to '3' for useful 
+debugging.
+
+=cut

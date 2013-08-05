@@ -159,7 +159,7 @@ sub write_flash {
 	# TODO check the length of data is a multiple of the flash block write size
 	
 	my $dlen = length($data);
-	if ($dlen % (64*4)) {
+	if ($dlen % (64*2)) {
 		croak "Trying to write data that is not a multiple of the flash block write size but $dlen";
 	}
 	
@@ -206,6 +206,13 @@ sub read_flash_crc {
     
     return $crcs;
 }
+
+sub launch_app {
+	my $self = shift;
+	$self->_write_packet("08");
+	# No response is expected, the bootloader is no longer running
+}
+
 # open the port to a device, be it a serial port or a socket
 sub _device_open {
 	my $self = shift;
@@ -269,11 +276,10 @@ sub _device_open {
 
 }
 
-## write_serial
-#   Prints data to the serial port.
-#   the controller
+## _write_packet
+#   Writes a packet to the device
 #   Takes a string of hex characters as input (e.g. "DEADBEEF").
-#   Tho characters get converted to a single byte that will be sent
+#   Two characters get converted to a single byte that will be sent over the link
 sub _write_packet {
 
 	my ( $self, $data ) = @_;
@@ -295,8 +301,8 @@ sub _write_packet {
 
 }
 
-## read_serial(timeout)
-#   Reads data from the serial port. Times out if nothing is
+## read_packet(timeout)
+#   Reads data from the link. Times out if nothing is
 #   received after <timeout> seconds.
 sub _read_packet {
 
@@ -572,15 +578,23 @@ sub _add_to_memory {
 
 # Rewrite the application entry point just before the bootloader in flash and replace the application
 # entry point at org 0x00 with the entry point of the bootloader
+# Note: two words need to be rewritten otherwise long jumps fail
 sub _rewrite_entrypoints {
 	my ($self, $btldr) = @_;
 	
 	# Insert 'goto application' instruction just before the bootloader
-	my $app_entry_loc = 0xFC00 - 2;
-	my $app_entry     = $self->{_program}->{0}->{data};
-	$self->{_program}->{$app_entry_loc}->{data} = $app_entry;
+	my $app_entry_loc = 0xFC00 - 4;
+	my $app_entry_1     = $self->{_program}->{0}->{data};
+	my $app_entry_2     = $self->{_program}->{2}->{data};
+	
+	$self->{_program}->{$app_entry_loc}->{data} = $app_entry_1;
+	$self->{_program}->{$app_entry_loc + 2}->{data} = $app_entry_2;
+	
 	# Insert the 'goto bootloader' at 0x00
-	$self->{_program}->{0}->{data} = $btldr;
+	$self->{_program}->{0}->{data} = substr($btldr, 0, 4);
+	$self->{_program}->{2}->{data} = substr($btldr, 4, 4);
+	
+	$self->_debug(3, "Replaced org 0x00 with $self->{_program}->{0}->{data} | $self->{_program}->{2}->{data} and bootldr - 0x04 with $self->{_program}->{$app_entry_loc}->{data} | $self->{_program}->{$app_entry_loc + 2}->{data}");
 }
 
 # Displays the program memory contents in hex format on the screen
@@ -596,6 +610,7 @@ sub _print_program_memory {
 		print $self->{_program}->{$entry}->{data};
 		$counter++;
 	}
+	say "";
 }
 
 # Get the next page from the programming memory to be programmed.
@@ -770,7 +785,7 @@ Make a connection to the target device. This function will return a hash contain
 
 =item firmware version
 
-=item type of pic we're connected to ('PIC16' of 'PIC18')
+=item type of PIC we're connected to ('PIC16' of 'PIC18')
 
 =back
 
@@ -779,6 +794,10 @@ The other elements of the response of the
 =head2 C<version>
 
 Reports the version of the bootloader firmware running on the device as [major].[minor].
+
+=head2 C<launch_app>
+
+Exit the bootloader and launch the application code.
 
 =head2 C<BUILD>
 

@@ -47,14 +47,17 @@ my $crc = $loader->_crc16($input);
 is $crc, 0xCBC1, "CRC calculates according to Microchip implementation";
 
 # Verify the swapping of the program memory
-my $app_entry = 0xFC00 - 2;
-$loader->_rewrite_entrypoints("BEEF");
-is $loader->{_program}->{0}->{data}, "BEEF", "Rewrote bootloader entry point";
-is $loader->{_program}->{$app_entry}->{data}, "57EF", "Relocated entry point";
+# Two words need to be rewritten otherwize the long jumps fail.
+my $app_entry = 0xFC00 - 4;
+$loader->_rewrite_entrypoints("BABEFACE");
+is $loader->{_program}->{0}->{data}, "BABE", "Rewrote bootloader entry point #1";
+is $loader->{_program}->{2}->{data}, "FACE", "Rewrote bootloader entry point #2";
+is $loader->{_program}->{$app_entry}->{data}, "57EF", "Relocated application entry point #1";
+is $loader->{_program}->{$app_entry+2}->{data}, "00F0", "Relocated application entry point #2";
 
 # Verify the function to get blocks from the source hex to program
 $data = $loader->_get_writeblock(0);
-is $data, "BEEF00F0FFFFFFFFFACF12F0FBCF13F0E9CF14F059EF00F0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "Got correct write block";
+is $data, "BABEFACEFFFFFFFFFACF12F0FBCF13F0E9CF14F059EF00F0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "Got correct write block";
 $data = $loader->_get_writeblock(100);
 is $data, "", "Empty write block returns empty string";
  
