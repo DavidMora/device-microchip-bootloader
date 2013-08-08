@@ -85,7 +85,7 @@ sub connect_target {
     $self->{'bootloader_version_minor'} = $self->_get_byte( $response, 2 );
     $self->{'bootloader_version_major'} = $self->_get_byte( $response, 3 );
 
-    $self->_debug( 3,
+    $self->_debug( 2,
               'Connected to bootloader version '
             . $self->_get_byte( $response, 3 ) . "."
             . $self->_get_byte( $response, 2 ) );
@@ -94,7 +94,7 @@ sub connect_target {
     my $device_id = $self->read_flash( 0x3FFFFE, 2 );
     $self->{'device_id'} = $self->_str2int($device_id);
 
-    $self->_debug( 3, 'Connected to PIC type ' . $self->{'device_id'} );
+    $self->_debug( 2, 'Connected to PIC type ' . $self->{'device_id'} );
 
     return $response;
 
@@ -229,8 +229,12 @@ sub read_flash_crc {
 sub launch_app {
     my $self = shift;
     $self->_write_packet("08");
-
-    # No response is expected, the bootloader is no longer running
+    
+    # Close the filehandle, we don't need it anymore.
+    close($self->{_fh});
+    
+    # No response is expected, the bootloader is no longer running by now if the application loaded fine.
+    
 }
 
 # open the port to a device, be it a serial port or a socket
@@ -320,6 +324,12 @@ sub _write_packet {
 
     $self->_debug( 3, "Writing: " . $self->_hexdump($packet) );
 
+	#Write per byte
+	#my @packet_split = split(//, $packet);
+	
+	#foreach (@packet_split) {
+	#	syswrite( $self->{_fh}, $_, 1 );
+	#} 
     # Write
     syswrite( $self->{_fh}, $packet, length($packet) );
 
@@ -350,7 +360,7 @@ sub _read_packet {
             $bytes = $self->{_fh}->sysread( $result, 2048, length($result) );
 
 # Verify we have the entire string (should end with 0x04 and no preceding 0x05)
-            $self->_debug( 4, "RX # " . $self->_hexdump($result) );
+            $self->_debug( 5, "RX # " . $self->_hexdump($result) );
 
             #if ( $sync && $result =~ /\x0F/ ) {
             #	$waiting = 0;
@@ -825,6 +835,9 @@ The hex file that is to be programmed into the target device. Upon creation of t
 
 The target device where to send the firmware to. This can be either a serial port object (e.g. /dev/ttyUSB0) or a TCP socket (e.g. 192.168.1.52:10001).
 
+=item verbose
+
+Controls the verbosity of the module. Defaults to 0. Increasing numbers make the module more chatty. 5 is the highest level and probably provides too much information. 3 is a good level to get started.
 =back
 
 =head2 C<connect_target>
