@@ -40,31 +40,31 @@ sub BUILD {
 }
 
 # Program the target device
-sub program {
-    my $self = shift;
-
-    # Connect to the target device if this is not the case yet
-    if ( !$self->{_connected} ) {
-        $self->connect_target();
-    }
-
-    return 0 if !$self->{_connected};
-
-    # TODO complete this function to do the actual programming
-    # Calculate the CRC of the flash blocks (soll-wert)
-
-    # Request the CRCs of the flash blocks from the device (ist-wert)
-
-    # Make the erase-write list
-
-    # Add the last page by default
-
-    # Erase in descending order
-
-    # Write in ascending order
-
-    return 1;
-}
+#sub program {
+#    my $self = shift;
+#
+#    # Connect to the target device if this is not the case yet
+#    if ( !$self->{_connected} ) {
+#        $self->connect_target();
+#    }
+#
+#    return 0 if !$self->{_connected};
+#
+#    # TODO complete this function to do the actual programming
+#    # Calculate the CRC of the flash blocks (soll-wert)
+#
+#    # Request the CRCs of the flash blocks from the device (ist-wert)
+#
+#    # Make the erase-write list
+#
+#    # Add the last page by default
+#
+#    # Erase in descending order
+#
+#    # Write in ascending order
+#
+#    return 1;
+#}
 
 # Open the connection to the target device (serial port or TCP)
 # depending on the target parameters that were passed
@@ -143,8 +143,7 @@ sub read_flash {
 
 }
 
-# Note: stop address is the first address of the last page to erase
-# Note: this erases the goto bootloader instruction too, so ensure to save it before erasing the first page in program memory
+
 sub erase_flash {
     my ( $self, $stop_addr, $pages ) = @_;
 
@@ -229,12 +228,12 @@ sub read_flash_crc {
 sub launch_app {
     my $self = shift;
     $self->_write_packet("08");
-    
+
     # Close the filehandle, we don't need it anymore.
-    close($self->{_fh});
-    
-    # No response is expected, the bootloader is no longer running by now if the application loaded fine.
-    
+    close( $self->{_fh} );
+
+# No response is expected, the bootloader is no longer running by now if the application loaded fine.
+
 }
 
 # open the port to a device, be it a serial port or a socket
@@ -324,12 +323,12 @@ sub _write_packet {
 
     $self->_debug( 3, "Writing: " . $self->_hexdump($packet) );
 
-	#Write per byte
-	#my @packet_split = split(//, $packet);
-	
-	#foreach (@packet_split) {
-	#	syswrite( $self->{_fh}, $_, 1 );
-	#} 
+    #Write per byte
+    #my @packet_split = split(//, $packet);
+
+    #foreach (@packet_split) {
+    #	syswrite( $self->{_fh}, $_, 1 );
+    #}
     # Write
     syswrite( $self->{_fh}, $packet, length($packet) );
 
@@ -838,6 +837,7 @@ The target device where to send the firmware to. This can be either a serial por
 =item verbose
 
 Controls the verbosity of the module. Defaults to 0. Increasing numbers make the module more chatty. 5 is the highest level and probably provides too much information. 3 is a good level to get started.
+
 =back
 
 =head2 C<connect_target>
@@ -852,7 +852,7 @@ Make a connection to the target device. This function will return a hash contain
 
 =back
 
-=head2 C<version>
+=head2 C<bootloader_version>
 
 Reports the version of the bootloader firmware running on the device as [major].[minor].
 
@@ -860,9 +860,42 @@ Reports the version of the bootloader firmware running on the device as [major].
 
 Exit the bootloader and launch the application code.
 
+=head2 C<erase_flash($stop_address, $pages)>
+
+This function erases flash pages. The C<$stop_address> is the base address of the last page to erase. C<$pages> specifies how many pages will be erased. The erasing happend backwards (from the page defined by $stop_address) to lower addresses. See the Microchip application note AN1310 for details.
+
+Warning: this function will erase the 'goto bootloader' instruction at address 0x0000 too, so ensure to save it before erasing the first page in program memory of the tager device.
+
+=head2 read_eeprom($start_address, $nr_of_bytes)>
+
+Reads a number of bytes from the EEPROM of the device. Returns '05' when no EEPROM is present in the device.
+
+=head2 C<read_flash($start_address, $nr_of_bytes)>
+
+Reads a number of bytes from the flash memory (= program memory) of the target device.
+
+=head2 C<read_flash_crc($start_address, $nr_of_write_blocks)>
+
+Read the CRC values of C<$nr_of_write_blocks> flash write blocks (= typically a smaller value than the blocksize of a flash erase block, see the specs of your target device for details).
+
+=head2 C<write_flash($start_adress, $data)>
+
+Writes the C<$data> to the program memory starting from location C<$start_address>. C<$start_address> should be aligned with the write block size and $data is an ASCII string in hexacdecimal format where a single byte is a readable nibble. So e.g. "10" represents a byte value of 0x10. The first byte of the C<$data> string will be written at C<$start_address> and the address is incremented from that point on.
+
 =head2 C<BUILD>
 
 An internal function used by Moose to run code after the constructor. Need to document because otherwise Test::Pod::Coverage test fails
 
+=head2 C<O_NDELAY>
+
+Detected by Pod::Coverage from the sysopen function. Stub documenation to ensure the test does not fail when the module is deployed.
+
+=head2 C<O_NOCTTY>
+
+Detected by Pod::Coverage from the sysopen function. Stub documenation to ensure the test does not fail when the module is deployed.
+
+=head2 C<O_RDWR>
+
+Detected by Pod::Coverage from the sysopen function. Stub documenation to ensure the test does not fail when the module is deployed.
 
 =cut
