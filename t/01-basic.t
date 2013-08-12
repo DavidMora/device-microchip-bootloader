@@ -9,6 +9,7 @@ use Test::More;
 
 BEGIN { use_ok 'Device::Microchip::Bootloader'; }
 BEGIN { use_ok 'Test::Exception'; }
+require Test::Exception;
 
 # Check we get an error message on missing input parameters
 my $loader;
