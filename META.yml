@@ -4,6 +4,7 @@ author:
   - 'Lieven Hollevoet <hollie@cpan.org>'
 build_requires:
   IO::Select: 0
+  Test::Exception: 0
   Test::More: 0
   Test::Requires: 0
   Test::SharedFork: 0
@@ -35,4 +36,4 @@ requires:
 resources:
   bugtracker: https://github.com/hollie/device-microchip-bootloader/issues
   repository: git://github.com/hollie/device-microchip-bootloader.git
-version: 0.1
+version: 0.2

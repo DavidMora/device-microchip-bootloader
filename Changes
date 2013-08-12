@@ -1,10 +1,18 @@
 ==================================================
-Changes from 2012-08-10 00:00:00 +0000 to present.
+Changes from 2012-08-12 00:00:00 +0000 to present.
 ==================================================
 
 ----------------------------------------
-version 0.1 at 2013-08-10 08:59:18 +0000
+version 0.2 at 2013-08-12 21:33:32 +0000
 ----------------------------------------
+
+  Change: 3413f67f84ed00a487b96d4e86010cb2c1a4b047
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-12 23:32:48 +0000
+
+    Ensure testing passes, upped to 0.2
+
+    Test were failing due to missing require for Test::Exception 
 
   Change: e30c2b73a5b5d100675c65a782fdb82c77cc6347
   Author: Lieven Hollevoet <hollie@lika.be>
@@ -150,6 +158,16 @@ version 0.1 at 2013-08-10 08:59:18 +0000
   Date : 2013-02-14 09:20:13 +0000
 
     Initial commit 
+
+----------------------------------------
+version 0.1 at 2013-08-10 08:59:30 +0000
+----------------------------------------
+
+  Change: a25c25be4b47d1900d587599c5ff1ffc6574cf45
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-10 10:59:30 +0000
+
+    Build results of e30c2b7 (on master) 
 
 ================
 End of releases.
