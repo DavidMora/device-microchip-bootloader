@@ -2,7 +2,7 @@ use strict;  # To keep Test::Perl::Critic happy, Moose does enable this too...
 
 package Device::Microchip::Bootloader;
 {
-  $Device::Microchip::Bootloader::VERSION = '0.2';
+  $Device::Microchip::Bootloader::VERSION = '0.3';
 }
 
 use Moose;
@@ -659,7 +659,7 @@ sub _print_program_memory {
 
     my $counter = 0;
 
-    foreach my $entry ( sort { $a <=> $b } keys $self->{_program} ) {
+    foreach my $entry ( sort { $a <=> $b } keys %{$self->{_program}} ) {
         if ( ( $counter % 8 ) == 0 ) {
             print "\n $counter\t: ";
         }
@@ -821,7 +821,7 @@ Device::Microchip::Bootloader - Bootloader host software for Microchip PIC devic
 
 =head1 VERSION
 
-version 0.2
+version 0.3
 
 =head1 SYNOPSIS
 

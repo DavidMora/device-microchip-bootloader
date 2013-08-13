@@ -1,10 +1,20 @@
 ==================================================
-Changes from 2012-08-12 00:00:00 +0000 to present.
+Changes from 2012-08-13 00:00:00 +0000 to present.
 ==================================================
 
 ----------------------------------------
-version 0.2 at 2013-08-12 21:33:32 +0000
+version 0.3 at 2013-08-13 20:14:58 +0000
 ----------------------------------------
+
+  Change: 1b9598407197ec83dbe2ce9e4db2066df3330915
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-13 22:14:39 +0000
+
+    Fix for Perl 5.12.x, bumped to v0.3
+
+    An error showed up when trying to fetch keys from a hash that was
+    actually a reference in older versions of Perl. Explicitly added the
+    cast. 
 
   Change: 3413f67f84ed00a487b96d4e86010cb2c1a4b047
   Author: Lieven Hollevoet <hollie@lika.be>
@@ -158,6 +168,16 @@ version 0.2 at 2013-08-12 21:33:32 +0000
   Date : 2013-02-14 09:20:13 +0000
 
     Initial commit 
+
+----------------------------------------
+version 0.2 at 2013-08-12 21:33:49 +0000
+----------------------------------------
+
+  Change: d3809e99ffa860ffbe5744458f958c2d11d7011d
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-12 23:33:49 +0000
+
+    Build results of 3413f67 (on master) 
 
 ----------------------------------------
 version 0.1 at 2013-08-10 08:59:30 +0000
