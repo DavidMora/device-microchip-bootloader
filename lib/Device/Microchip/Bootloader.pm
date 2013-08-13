@@ -656,7 +656,7 @@ sub _print_program_memory {
 
     my $counter = 0;
 
-    foreach my $entry ( sort { $a <=> $b } keys $self->{_program} ) {
+    foreach my $entry ( sort { $a <=> $b } keys %{$self->{_program}} ) {
         if ( ( $counter % 8 ) == 0 ) {
             print "\n $counter\t: ";
         }
