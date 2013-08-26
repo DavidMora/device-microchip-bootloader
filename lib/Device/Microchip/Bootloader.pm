@@ -866,7 +866,7 @@ This function erases flash pages. The C<$stop_address> is the base address of th
 
 Warning: this function will erase the 'goto bootloader' instruction at address 0x0000 too, so ensure to save it before erasing the first page in program memory of the tager device.
 
-=head2 read_eeprom($start_address, $nr_of_bytes)>
+=head2 C<read_eeprom($start_address, $nr_of_bytes)>
 
 Reads a number of bytes from the EEPROM of the device. Returns '05' when no EEPROM is present in the device.
 
