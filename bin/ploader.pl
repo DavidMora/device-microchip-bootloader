@@ -64,7 +64,7 @@ ploader.pl - Bootloader for Microchip PIC devices
 
 =head1 VERSION
 
-version 0.4
+version 0.5
 
 =head1 DESCRIPTION
 

@@ -1,10 +1,26 @@
 ==================================================
-Changes from 2012-08-26 00:00:00 +0000 to present.
+Changes from 2012-09-10 00:00:00 +0000 to present.
 ==================================================
 
 ----------------------------------------
-version 0.4 at 2013-08-26 20:06:14 +0000
+version 0.5 at 2013-09-10 20:44:32 +0000
 ----------------------------------------
+
+  Change: d298bc50f1b9e93090d23b6988254d385e981e6f
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-10 22:42:23 +0000
+
+    Bugfix: application launch failure fixed
+
+    Launching an application from the bootloader sometimes failed due to
+    closing the port handle too soon (before the string was sent
+    completely). Added a 1 second delay to work around this. 
+
+  Change: 537eed7f67dff2010c31f28b883648168c68c575
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-26 22:06:24 +0000
+
+    v0.4 
 
   Change: 1b9598407197ec83dbe2ce9e4db2066df3330915
   Author: Lieven Hollevoet <hollie@lika.be>
@@ -168,6 +184,16 @@ version 0.4 at 2013-08-26 20:06:14 +0000
   Date : 2013-02-14 09:20:13 +0000
 
     Initial commit 
+
+----------------------------------------
+version 0.4 at 2013-08-26 20:06:24 +0000
+----------------------------------------
+
+  Change: b19502bb429e7e64a589ead25f7a3acad0801884
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-26 22:06:24 +0000
+
+    Build results of 537eed7 (on master) 
 
 ----------------------------------------
 version 0.3 at 2013-08-13 20:15:11 +0000
