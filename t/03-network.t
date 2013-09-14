@@ -37,13 +37,20 @@ if ( $pid == 0 ) {
     ok $client, 'client accepted';
     $sel = IO::Select->new($client);
     $sel->can_read( 10 * $debug_mult ) or die;
-    my $buf;
+    my ($buf, $bytes, $resp);
+
+	# Handle autobaud character
+	#$bytes = sysread $client, $buf, 2048;
+    #is $bytes, 1, 'autobaud character';
+    #is $buf, "\x0F", "Got autobaud traingin character";
+    #$resp = "\x0F";
+    #syswrite $client, $resp, length($resp);
 
     # Handle bootloader info request
-    my $bytes = sysread $client, $buf, 2048;
+    $bytes = sysread $client, $buf, 2048;
     is $bytes, 5, 'sync packet length';
     is $buf, "\x0F\x00\x00\x00\x04", "Got bootloader info request";
-    my $resp = "\x0F\x00\x00\x05\x05\x01\xFF\x84\x01\x02\x03\x00\x31\x42\x04";
+    $resp = "\x0F\x00\x00\x05\x05\x01\xFF\x84\x01\x02\x03\x00\x31\x42\x04";
     syswrite $client, $resp, length($resp);
 
     # Handle PIC version request

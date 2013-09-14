@@ -74,11 +74,27 @@ sub connect_target {
     # Open the port
     $self->_device_open();
 
+    # Send <STX> until an <STX> is replied
+    my ($response, $bytes, $pingcount);
+    #$pingcount = 0;
+    #$bytes = 0;
+
+    #while ($bytes == 0) {
+    #    syswrite( $self->{_fh}, "\x0F", 1);
+    #    sleep(.5);
+    #    $bytes = $self->{_fh}->sysread( $response, 1, length($response) );
+    #    say "Bytes: $bytes -- " . $self->_hexdump($response);
+    #    $pingcount++;
+    #    if ($pingcount > 10) {
+    #        croak "Did not receive response to autobaud training sequence, is the bootloader running?";
+    #    }
+    #}
+
     # Request bootloader operation
     $self->_debug( 1, "Anybody home?" );
     $self->_write_packet("00");
 
-    my $response = $self->_read_packet(20);
+    $response = $self->_read_packet(20);
 
     # Process the info that was returned
     #$self->_debug( 4, "Got response: " . Dumper($bytes));
@@ -227,8 +243,11 @@ sub read_flash_crc {
 
 sub launch_app {
     my $self = shift;
+
+	say ("Launching application...");
     $self->_write_packet("08");
 
+	sleep(1);
     # Close the filehandle, we don't need it anymore.
     close( $self->{_fh} );
 
