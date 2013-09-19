@@ -30,6 +30,12 @@ has verbose => (
     default => '0',
 );
 
+has baudrate => (
+    is      => 'ro',
+    isa     => 'Int',
+    default => 115200,
+);
+
 use Carp qw/croak carp/;
 
 # Ensure we read the hexfile after constructing the Bootloader object
@@ -261,7 +267,7 @@ sub _device_open {
 
     my $dev = $self->device();
     my $fh;
-    my $baud = 115200;
+    my $baud = $self->{baudrate};
 
     if ( $dev =~ /\// || $dev =~ /^COM./ ) {
         if ( -S $dev ) {
@@ -852,6 +858,10 @@ The hex file that is to be programmed into the target device. Upon creation of t
 =item device
 
 The target device where to send the firmware to. This can be either a serial port object (e.g. /dev/ttyUSB0) or a TCP socket (e.g. 192.168.1.52:10001).
+
+=item baudrate
+
+Optional parameter when using a serial port for connecting to the bootloader. Default value is 115200 bps.
 
 =item verbose
 
