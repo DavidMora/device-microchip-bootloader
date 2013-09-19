@@ -42,7 +42,10 @@ use Carp qw/croak carp/;
 sub BUILD {
     my $self = shift;
     $self->{_connected} = 0;
+    $self->{_bootloader_address} = 0xFC00;
+    $self->{_fuses_address} = 0xFFF8;
     $self->_read_hexfile;
+
 }
 
 # Program the target device
@@ -571,6 +574,10 @@ sub _read_hexfile {
 
             # If CRC was valid, add it to the memory datastructure
             # Be sure to add the $offset from the Linear Address Record!
+	    my $complete_address = $address + $offset;
+	    if ($complete_address >= $self->{_bootloader_address} && $complete_address < $self->{_fuses_address}) {
+		croak "The HEX inputfile contains instructions on locations that would overwrite the bootloader";
+	    } 
             $self->_add_to_memory( $address + $offset, $4 );
 
             next;
