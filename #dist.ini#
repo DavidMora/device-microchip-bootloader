@@ -4,7 +4,7 @@ license = Perl_5
 copyright_holder = Lieven Hollevoet
 copyright_year   = 2013
 
-version = 0.6
+version = 0.4
 
 [Git::Check]
 [Git::Commit]
@@ -21,9 +21,8 @@ version = 0.6
 [@Filter]
 -bundle = @Basic
 -remove = Readme
-;-remove = UploadToCPAN
+-remove = UploadToCPAN
 
-[PruneFiles]
 match = .+~$
 
 [NextRelease]
@@ -42,7 +41,7 @@ match = .+~$
 [Test::Synopsis]
 [AutoPrereqs]
 [MetaJSON]
-;[FakeRelease]
+[FakeRelease]
 
 [GitHub::Meta]
   repo = device-microchip-bootloader-perl
