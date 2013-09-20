@@ -577,7 +577,7 @@ sub _read_hexfile {
 	    my $complete_address = $address + $offset;
 	    if ($complete_address >= $self->{_bootloader_address} && $complete_address < $self->{_fuses_address}) {
 		croak "The HEX inputfile contains instructions on locations that would overwrite the bootloader";
-	    } 
+	    }
             $self->_add_to_memory( $address + $offset, $4 );
 
             next;
