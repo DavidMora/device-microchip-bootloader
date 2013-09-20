@@ -3,7 +3,7 @@ NAME
     PIC devices
 
 VERSION
-    version 0.5
+    version 0.6
 
 SYNOPSIS
     my $loader = Device::Microchip::Bootloader->new(firmware =>
@@ -31,6 +31,10 @@ METHODS
         The target device where to send the firmware to. This can be either
         a serial port object (e.g. /dev/ttyUSB0) or a TCP socket (e.g.
         192.168.1.52:10001).
+
+    baudrate
+        Optional parameter when using a serial port for connecting to the
+        bootloader. Default value is 115200 bps.
 
     verbose
         Controls the verbosity of the module. Defaults to 0. Increasing
@@ -64,7 +68,7 @@ METHODS
     address 0x0000 too, so ensure to save it before erasing the first page
     in program memory of the tager device.
 
-  read_eeprom($start_address, $nr_of_bytes)>
+  "read_eeprom($start_address, $nr_of_bytes)"
     Reads a number of bytes from the EEPROM of the device. Returns '05' when
     no EEPROM is present in the device.
 

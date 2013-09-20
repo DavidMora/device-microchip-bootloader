@@ -2,7 +2,7 @@ use strict;  # To keep Test::Perl::Critic happy, Moose does enable this too...
 
 package Device::Microchip::Bootloader;
 {
-  $Device::Microchip::Bootloader::VERSION = '0.5';
+  $Device::Microchip::Bootloader::VERSION = '0.6';
 }
 
 use Moose;
@@ -33,13 +33,22 @@ has verbose => (
     default => '0',
 );
 
+has baudrate => (
+    is      => 'ro',
+    isa     => 'Int',
+    default => 115200,
+);
+
 use Carp qw/croak carp/;
 
 # Ensure we read the hexfile after constructing the Bootloader object
 sub BUILD {
     my $self = shift;
     $self->{_connected} = 0;
+    $self->{_bootloader_address} = 0xFC00;
+    $self->{_fuses_address} = 0xFFF8;
     $self->_read_hexfile;
+
 }
 
 # Program the target device
@@ -264,7 +273,7 @@ sub _device_open {
 
     my $dev = $self->device();
     my $fh;
-    my $baud = 115200;
+    my $baud = $self->{baudrate};
 
     if ( $dev =~ /\// || $dev =~ /^COM./ ) {
         if ( -S $dev ) {
@@ -568,6 +577,10 @@ sub _read_hexfile {
 
             # If CRC was valid, add it to the memory datastructure
             # Be sure to add the $offset from the Linear Address Record!
+	    my $complete_address = $address + $offset;
+	    if ($complete_address >= $self->{_bootloader_address} && $complete_address < $self->{_fuses_address}) {
+		croak "The HEX inputfile contains instructions on locations that would overwrite the bootloader";
+	    }
             $self->_add_to_memory( $address + $offset, $4 );
 
             next;
@@ -840,7 +853,7 @@ Device::Microchip::Bootloader - Bootloader host software for Microchip PIC devic
 
 =head1 VERSION
 
-version 0.5
+version 0.6
 
 =head1 SYNOPSIS
 
@@ -867,6 +880,10 @@ The hex file that is to be programmed into the target device. Upon creation of t
 =item device
 
 The target device where to send the firmware to. This can be either a serial port object (e.g. /dev/ttyUSB0) or a TCP socket (e.g. 192.168.1.52:10001).
+
+=item baudrate
+
+Optional parameter when using a serial port for connecting to the bootloader. Default value is 115200 bps.
 
 =item verbose
 
@@ -900,7 +917,7 @@ This function erases flash pages. The C<$stop_address> is the base address of th
 
 Warning: this function will erase the 'goto bootloader' instruction at address 0x0000 too, so ensure to save it before erasing the first page in program memory of the tager device.
 
-=head2 read_eeprom($start_address, $nr_of_bytes)>
+=head2 C<read_eeprom($start_address, $nr_of_bytes)>
 
 Reads a number of bytes from the EEPROM of the device. Returns '05' when no EEPROM is present in the device.
 

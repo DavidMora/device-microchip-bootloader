@@ -1,10 +1,49 @@
 ==================================================
-Changes from 2012-09-10 00:00:00 +0000 to present.
+Changes from 2012-09-20 00:00:00 +0000 to present.
 ==================================================
 
 ----------------------------------------
-version 0.5 at 2013-09-10 20:44:32 +0000
+version 0.6 at 2013-09-20 17:31:49 +0000
 ----------------------------------------
+
+  Change: 882b424543aed7f36ac2606d5b3623ab166a9722
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-20 19:31:25 +0000
+
+    Line endings fixed before release 
+
+  Change: a1742efccf9cd195809dd52860a77bf3d85f3c87
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-19 17:32:26 +0000
+
+    Added safety check on hexfile input
+
+    Added an extra safety check on the input data coming from the HEX
+    file. When the user presents an input file containing instructions at
+    locations where the bootloader resides those instructions were
+    silently dropped up to now. The safety check informs the user of the
+    fact that the hexfile contains invalid input. 
+
+  Change: d79bf708871c81ccfa9f29ff433a678589cee466
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-19 17:02:44 +0000
+
+    Added baudrate option for serial port connections.
+
+    Closes #2. 
+
+  Change: 221cb419e02702275243089864bfd6d10899ba8f
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-14 11:46:47 +0000
+
+    Merge branch 'master' of
+    github.com:hollie/device-microchip-bootloader 
+
+  Change: ecb2c6375bd00890994ec889b5b4522b9b75fbf5
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-10 22:45:21 +0000
+
+    v0.5 
 
   Change: d298bc50f1b9e93090d23b6988254d385e981e6f
   Author: Lieven Hollevoet <hollie@lika.be>
@@ -15,6 +54,12 @@ version 0.5 at 2013-09-10 20:44:32 +0000
     Launching an application from the bootloader sometimes failed due to
     closing the port handle too soon (before the string was sent
     completely). Added a 1 second delay to work around this. 
+
+  Change: b5362b7ae927f25138625124e2e083419bb80efa
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-08-26 22:34:05 +0000
+
+    Typo fix in POD doc 
 
   Change: 537eed7f67dff2010c31f28b883648168c68c575
   Author: Lieven Hollevoet <hollie@lika.be>
@@ -184,6 +229,16 @@ version 0.5 at 2013-09-10 20:44:32 +0000
   Date : 2013-02-14 09:20:13 +0000
 
     Initial commit 
+
+----------------------------------------
+version 0.5 at 2013-09-10 20:45:21 +0000
+----------------------------------------
+
+  Change: 6fff0990cece7509c80cdcd01e7a8bb5c08ff1e1
+  Author: Lieven Hollevoet <hollie@lika.be>
+  Date : 2013-09-10 22:45:21 +0000
+
+    Build results of ecb2c63 (on master) 
 
 ----------------------------------------
 version 0.4 at 2013-08-26 20:06:24 +0000

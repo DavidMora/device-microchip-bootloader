@@ -17,6 +17,9 @@ my $loader = Device::Microchip::Bootloader->new(
 );
 ok $loader, 'object created';
 
+# Verify the default baudrate is 115200
+is $loader->{baudrate}, 115200, 'Default baudrate is 115200';
+
 # Verify the escaping/unescaping of communication between the bootloader and the software
 my $data = "\x00\x0F\x00\x05\x01\xFF\x84\x01\x02\x03\x05\x04\x05\x05\x04";
 
@@ -69,5 +72,16 @@ is $data,
     "Got correct write block";
 $data = $loader->_get_writeblock(100);
 is $data, "", "Empty write block returns empty string";
+
+# Verify we can set the baudrate to non-default values
+$loader = Device::Microchip::Bootloader->new(
+    firmware => 't/stim/short.hex',
+    device   => '/dev/ttyUSB0',
+    baudrate => 9600
+);
+ok $loader, 'object created';
+
+# Verify the default baudrate is 115200
+is $loader->{baudrate}, 9600, 'Could override the baudrate to 9600';
 
 done_testing();
