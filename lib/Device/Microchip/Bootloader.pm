@@ -2,7 +2,7 @@ use strict;  # To keep Test::Perl::Critic happy, Moose does enable this too...
 
 package Device::Microchip::Bootloader;
 {
-  $Device::Microchip::Bootloader::VERSION = '0.6';
+  $Device::Microchip::Bootloader::VERSION = '0.7';
 }
 
 use Moose;
@@ -853,7 +853,7 @@ Device::Microchip::Bootloader - Bootloader host software for Microchip PIC devic
 
 =head1 VERSION
 
-version 0.6
+version 0.7
 
 =head1 SYNOPSIS
 

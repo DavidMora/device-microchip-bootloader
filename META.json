@@ -4,7 +4,7 @@
       "Lieven Hollevoet <hollie@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300038, CPAN::Meta::Converter version 2.132510",
+   "generated_by" : "Dist::Zilla version 4.300036, CPAN::Meta::Converter version 2.120921",
    "license" : [
       "perl_5"
    ],
@@ -66,6 +66,6 @@
          "web" : "https://github.com/hollie/device-microchip-bootloader"
       }
    },
-   "version" : "0.6"
+   "version" : "0.7"
 }
 

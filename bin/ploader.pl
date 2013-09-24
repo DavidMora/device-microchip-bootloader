@@ -18,12 +18,12 @@ getopt( 'dfvb', \%opts );
 # Create the object
 my $loader;
 
-if ($defined %opts{b}) {
+if (defined $opts{b}) {
     $loader = Device::Microchip::Bootloader->new(
         firmware => $opts{f},
         device   => $opts{d},
         verbose  => $opts{v} || 0,
-        baudrate => %opts{b}
+        baudrate => $opts{b}
     );
 } else {
     $loader = Device::Microchip::Bootloader->new(
@@ -75,7 +75,7 @@ ploader.pl - Bootloader for Microchip PIC devices
 
 =head1 VERSION
 
-version 0.6
+version 0.7
 
 =head1 DESCRIPTION
 

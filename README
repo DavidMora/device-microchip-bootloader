@@ -3,7 +3,7 @@ NAME
     PIC devices
 
 VERSION
-    version 0.6
+    version 0.7
 
 SYNOPSIS
     my $loader = Device::Microchip::Bootloader->new(firmware =>
