@@ -20,14 +20,14 @@ my $loader;
 
 if (defined $opts{b}) {
     $loader = Device::Microchip::Bootloader->new(
-        firmware => $opts{f},
+        firmware => $opts{f} || "",
         device   => $opts{d},
         verbose  => $opts{v} || 0,
         baudrate => $opts{b}
     );
 } else {
     $loader = Device::Microchip::Bootloader->new(
-        firmware => $opts{f},
+        firmware => $opts{f} || "",
         device   => $opts{d},
         verbose  => $opts{v} || 0,
     );
@@ -35,6 +35,11 @@ if (defined $opts{b}) {
 
 # Connect to the target device over the specified connection
 $loader->connect_target();
+
+# If we did not pass a hexfile stop the program here
+exit 0 if (!defined $opts{f});
+
+# Otherwise, continue with bootloading...
 
 my $response;
 
@@ -84,5 +89,7 @@ the parameter 'b' with the required baudrate when invoking the script.
 Optionally, a parameter -v <verboselevel> can be passed to modify the verbosity
 of the Device::Microchip::Bootloader module. Defaults to '0', set to '3' for useful
 debugging.
+
+If you just want to connect to a PIC to identify the target device then don't pass a firmware file parameter when starting the program.
 
 =cut

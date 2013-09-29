@@ -1,4 +1,4 @@
-#!/bin/bin/perl
+#!/usr/bin/perl
 #
 # Copyright (C) 2013 by Lieven Hollevoet
 

@@ -525,7 +525,12 @@ sub _crc16 {
 sub _read_hexfile {
 
     my $self = shift;
-
+    
+    # If no firmware file is provided, we just want to identify the PIC and hence we don't need to read a hexfile
+    if ($self->{firmware} eq "") {
+        return;
+    }
+    
     open my $fh, '<', $self->{firmware};
 
     #        or croak "Could not open firmware hex file for reading: $!";
